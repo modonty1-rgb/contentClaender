@@ -1,0 +1,54 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "mongodb"
+  url      = env("DATABASE_URL")
+}
+
+model Client {
+  id        String   @id @default(auto()) @map("_id") @db.ObjectId
+  name      String
+  slug      String   @unique
+  color     String   @default("#6366f1")
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model ContentEntry {
+  id             String    @id @default(auto()) @map("_id") @db.ObjectId
+  clientId       String?   @db.ObjectId
+  month          String
+  day            Int
+  idea           String    @default("")
+  funnel         String[]
+  typeOfContent  String    @default("")
+  orgPaid        String    @default("")
+  captionSA      String?
+  captionEG      String?
+  script         String?
+  tov            String?
+  reference      String?
+  publishing     String    @default("لم يتم النشر")
+  channels       String[]
+  postVidLinks   String?
+  reelLink       String?
+  publishingDate DateTime?
+  publishingTime String?
+  code           String?
+  notes          String?
+  reviewed       String?
+  readyToPublish String?
+  contentLink    String?
+  storyboard     String?
+  material       String?
+  size           String?
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+
+  @@index([clientId])
+  @@index([month])
+  @@index([clientId, month])
+  @@index([month, day])
+}
