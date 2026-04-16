@@ -93,8 +93,12 @@ export async function getEntriesByMonth(
 }
 
 export async function getEntryById(id: string): Promise<EntryListItem | null> {
-  const row = await prisma.contentEntry.findUnique({ where: { id } });
-  return row as EntryListItem | null;
+  try {
+    const row = await prisma.contentEntry.findUnique({ where: { id } });
+    return row as EntryListItem | null;
+  } catch {
+    return null;
+  }
 }
 
 export async function getAllMonthCounts(
