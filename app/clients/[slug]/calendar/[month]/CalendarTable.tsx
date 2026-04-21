@@ -3,7 +3,7 @@
 import type { ReactElement } from "react";
 import { Fragment, useState, useMemo, useCallback } from "react";
 import Link from "next/link";
-import { ExternalLink, Share2, Eye, Pencil, Trash2, MoreHorizontal, ArrowUpDown, ArrowUp, ArrowDown, Columns, Search, X, Clapperboard, Send } from "lucide-react";
+import { ExternalLink, Share2, Eye, Pencil, Trash2, MoreHorizontal, ArrowUpDown, ArrowUp, ArrowDown, Columns, Search, X, Clapperboard, Send, CheckCircle2 } from "lucide-react";
 import { Button } from "@/app/components/ui/button";
 import { Input } from "@/app/components/ui/input";
 import {
@@ -145,24 +145,35 @@ function ActionsMenu({
               تعديل
             </Link>
           </DropdownMenuItem>
+          {entry.status === "جاهز للمراجعة" && (
+            <DropdownMenuItem asChild>
+              <Link href={`/clients/${slug}/calendar/${month}/production/${entry.id}`}
+                className="text-amber-600 focus:text-amber-700 focus:bg-amber-50">
+                <CheckCircle2 className="h-3.5 w-3.5" />
+                مراجعة والموافقة
+              </Link>
+            </DropdownMenuItem>
+          )}
           <DropdownMenuItem asChild>
             <Link href={`/clients/${slug}/calendar/${month}/production/${entry.id}`}>
               <Clapperboard className="h-3.5 w-3.5" />
               صفحة الإنتاج
             </Link>
           </DropdownMenuItem>
-          {entry.status === "قيد الإنتاج" ? (
-            <DropdownMenuItem disabled className="opacity-40 cursor-not-allowed">
-              <Send className="h-3.5 w-3.5" />
-              <span>صفحة النشر</span>
-              <span className="mr-auto text-[10px] font-normal">لسه قيد الإنتاج</span>
-            </DropdownMenuItem>
-          ) : (
+          {entry.status === "جاهز للنشر" || entry.status === "تم النشر" ? (
             <DropdownMenuItem asChild>
               <Link href={`/clients/${slug}/calendar/${month}/publish/${entry.id}`}>
                 <Send className="h-3.5 w-3.5" />
                 صفحة النشر
               </Link>
+            </DropdownMenuItem>
+          ) : (
+            <DropdownMenuItem disabled className="opacity-40 cursor-not-allowed">
+              <Send className="h-3.5 w-3.5" />
+              <span>صفحة النشر</span>
+              <span className="mr-auto text-[10px] font-normal">
+                {entry.status === "قيد الإنتاج" ? "لسه قيد الإنتاج" : "بانتظار موافقة الكاتب"}
+              </span>
             </DropdownMenuItem>
           )}
           <DropdownMenuItem onClick={handleShare}>
