@@ -98,6 +98,7 @@ export function PublishForm({ entry, slug, month }: Props): ReactElement {
       const result = await updateEntry(entry.id, buildPayload());
       if (result.success) {
         toast.success("تم الحفظ");
+        router.push(`/clients/${slug}/calendar/${month}`);
       } else {
         toast.error(result.error);
       }
@@ -116,7 +117,7 @@ export function PublishForm({ entry, slug, month }: Props): ReactElement {
         void sendTelegramNotification(
           `🚀 <b>تم النشر</b>\n\n💡 <b>الفكرة:</b> ${entry.idea}\n📅 يوم ${entry.day}\n👤 العميل: ${slug}\n\nتم نشر المحتوى بنجاح.`
         );
-        router.push(`/clients/${slug}/calendar/${month}`);
+        window.location.href = `/clients/${slug}/calendar/${month}`;
       } else {
         toast.error(result.error);
       }
@@ -274,10 +275,10 @@ export function PublishForm({ entry, slug, month }: Props): ReactElement {
         <Button
           type="button"
           variant="outline"
-          disabled={saving || isPublished}
+          disabled={saving}
           onClick={handleSave}
           className="h-10">
-          حفظ بدون نشر
+          {isPublished ? "حفظ التعديلات" : "حفظ بدون نشر"}
         </Button>
         <Button type="button" variant="ghost" className="h-10"
           onClick={() => router.push(`/clients/${slug}/calendar/${month}`)}>

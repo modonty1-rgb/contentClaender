@@ -3,13 +3,14 @@
 import type { ReactElement, ReactNode } from "react";
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { ExternalLink, CheckCircle2, Link2, AlertCircle } from "lucide-react";
+import { ExternalLink, CheckCircle2, Link2, AlertCircle, PlayCircle } from "lucide-react";
 import {
   FaVideo, FaLayerGroup, FaImage, FaMobileScreen, FaClapperboard,
   FaBullhorn, FaThumbsUp, FaClipboardUser, FaBagShopping,
 } from "react-icons/fa6";
 import { Button } from "@/app/components/ui/button";
 import { Input } from "@/app/components/ui/input";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/app/components/ui/dialog";
 import { cn } from "@/lib/utils";
 import { toast } from "@/app/components/ui/sonner";
 import { updateEntry, updateStatus } from "@/app/actions/entries";
@@ -109,6 +110,12 @@ export function ProductionForm({ entry, slug, month }: Props): ReactElement {
   const router = useRouter();
   const [assetLink, setAssetLink] = useState(entry.assetLink ?? "");
   const [saving, setSaving] = useState(false);
+  const [previewOpen, setPreviewOpen] = useState(false);
+
+  function getDriveEmbedUrl(url: string): string | null {
+    const m = url.match(/\/file\/d\/([a-zA-Z0-9_-]+)/);
+    return m ? `https://drive.google.com/file/d/${m[1]}/preview` : null;
+  }
 
   const isFullyLocked = entry.status === "جاهز للنشر" || entry.status === "تم النشر";
   const isReview      = entry.status === "جاهز للمراجعة";
@@ -128,7 +135,7 @@ export function ProductionForm({ entry, slug, month }: Props): ReactElement {
         void sendTelegramNotification(
           `🎨 <b>جاهز للمراجعة</b>\n\n💡 <b>الفكرة:</b> ${entry.idea}\n📅 يوم ${entry.day}\n👤 العميل: ${slug}\n\nالكريتيف جاهز — يرجى المراجعة والموافقة.`
         );
-        router.push(`/clients/${slug}/calendar/${month}`);
+        window.location.href = `/clients/${slug}/calendar/${month}`;
       } else {
         toast.error(result.error);
       }
@@ -146,7 +153,7 @@ export function ProductionForm({ entry, slug, month }: Props): ReactElement {
         void sendTelegramNotification(
           `✅ <b>جاهز للنشر</b>\n\n💡 <b>الفكرة:</b> ${entry.idea}\n📅 يوم ${entry.day}\n👤 العميل: ${slug}\n\nتمت الموافقة على الكريتيف — جاهز للميديا باير.`
         );
-        router.push(`/clients/${slug}/calendar/${month}`);
+        window.location.href = `/clients/${slug}/calendar/${month}`;
       } else {
         toast.error(result.error);
       }
@@ -170,6 +177,7 @@ export function ProductionForm({ entry, slug, month }: Props): ReactElement {
   }
 
   return (
+    <>
     <div className="space-y-5 pb-24">
 
       {/* Status banner */}
@@ -283,9 +291,19 @@ export function ProductionForm({ entry, slug, month }: Props): ReactElement {
               className="h-10 font-mono text-xs flex-1 min-w-0"
               disabled={isFullyLocked}
             />
+            {assetLink.trim() && getDriveEmbedUrl(assetLink) && (
+              <button
+                type="button"
+                onClick={() => setPreviewOpen(true)}
+                className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-border text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
+                title="معاينة الكريتيف">
+                <PlayCircle className="h-4 w-4" />
+              </button>
+            )}
             {assetLink.trim() && (
               <a href={assetLink} target="_blank" rel="noopener noreferrer"
-                className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-border text-muted-foreground hover:text-foreground hover:bg-muted transition-colors">
+                className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-border text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
+                title="فتح في Drive">
                 <ExternalLink className="h-4 w-4" />
               </a>
             )}
@@ -333,5 +351,32 @@ export function ProductionForm({ entry, slug, month }: Props): ReactElement {
       </div>
 
     </div>
+
+    {/* ── Creative Preview Modal ── */}
+    <Dialog open={previewOpen} onOpenChange={setPreviewOpen}>
+      <DialogContent className="sm:max-w-3xl p-0 overflow-hidden gap-0">
+        <DialogHeader className="px-4 py-3 border-b border-border">
+          <DialogTitle className="text-sm font-semibold" dir="rtl">
+            معاينة الكريتيف — {entry.idea}
+          </DialogTitle>
+        </DialogHeader>
+        {assetLink && getDriveEmbedUrl(assetLink) && (
+          <iframe
+            src={getDriveEmbedUrl(assetLink)!}
+            className="w-full"
+            style={{ height: "70vh", border: "none" }}
+            allow="autoplay"
+          />
+        )}
+        <div className="px-4 py-2 border-t border-border flex justify-end">
+          <a href={assetLink} target="_blank" rel="noopener noreferrer"
+            className="inline-flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground transition-colors">
+            <ExternalLink className="h-3.5 w-3.5" />
+            فتح في Drive
+          </a>
+        </div>
+      </DialogContent>
+    </Dialog>
+    </>
   );
 }

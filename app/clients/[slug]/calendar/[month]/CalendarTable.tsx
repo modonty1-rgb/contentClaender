@@ -3,7 +3,7 @@
 import type { ReactElement } from "react";
 import { Fragment, useState, useMemo, useCallback } from "react";
 import Link from "next/link";
-import { ExternalLink, Share2, Eye, Pencil, Trash2, MoreHorizontal, ArrowUpDown, ArrowUp, ArrowDown, Columns, Search, X, Clapperboard, Send, CheckCircle2 } from "lucide-react";
+import { ExternalLink, Share2, Eye, Pencil, Trash2, MoreHorizontal, ArrowUpDown, ArrowUp, ArrowDown, Columns, Search, X, Clapperboard, Send, CheckCircle2, PlayCircle, Lock } from "lucide-react";
 import { Button } from "@/app/components/ui/button";
 import { Input } from "@/app/components/ui/input";
 import {
@@ -16,6 +16,7 @@ import {
 import {
   Dialog, DialogContent, DialogHeader, DialogTitle,
 } from "@/app/components/ui/dialog";
+
 import {
   DropdownMenu, DropdownMenuCheckboxItem, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger,
 } from "@/app/components/ui/dropdown-menu";
@@ -25,6 +26,76 @@ import { STATUS_OPTIONS, TYPE_OPTIONS, TYPE_LABELS, DAYS_IN_MONTH } from "@/lib/
 import type { EntryListItem } from "@/app/actions/entries";
 import { ChannelIcon } from "@/app/components/ui/channel-icon";
 import type { MonthValue } from "@/lib/constants";
+
+// ─── Drive preview helper ─────────────────────────────────────────────────────
+
+function getDriveEmbedUrl(url: string): string | null {
+  const m = url.match(/\/file\/d\/([a-zA-Z0-9_-]+)/);
+  return m ? `https://drive.google.com/file/d/${m[1]}/preview` : null;
+}
+
+// ─── Creative Cell ────────────────────────────────────────────────────────────
+
+function CreativeCell({ entry }: { entry: EntryListItem }): ReactElement {
+  const [open, setOpen] = useState(false);
+  const embedUrl = entry.assetLink ? getDriveEmbedUrl(entry.assetLink) : null;
+
+  if (!embedUrl || entry.status === "قيد الإنتاج") {
+    return (
+      <div className="flex items-center justify-center">
+        <span
+          className="text-muted-foreground/25"
+          title={entry.status === "قيد الإنتاج" ? "الكريتيف قيد الإنتاج" : "لا يوجد كريتيف"}>
+          <Lock className="h-3.5 w-3.5" />
+        </span>
+      </div>
+    );
+  }
+
+  return (
+    <>
+      <div className="flex items-center justify-center">
+        <button
+          type="button"
+          onClick={(e) => { e.stopPropagation(); setOpen(true); }}
+          className="text-primary/60 hover:text-primary transition-colors"
+          title="معاينة الكريتيف">
+          <PlayCircle className="h-4 w-4" />
+        </button>
+      </div>
+
+      <Dialog open={open} onOpenChange={setOpen}>
+        <DialogContent className="sm:max-w-3xl p-0 overflow-hidden gap-0">
+          <div className="px-4 py-3 border-b border-border flex items-center justify-between gap-3">
+            <DialogTitle className="text-sm font-semibold" dir="rtl">
+              {entry.idea || `يوم ${entry.day}`}
+            </DialogTitle>
+            <button
+              type="button"
+              onClick={() => setOpen(false)}
+              className="shrink-0 rounded-sm p-1 text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
+              title="إغلاق">
+              <X className="h-4 w-4" />
+            </button>
+          </div>
+          <iframe
+            src={embedUrl}
+            className="w-full"
+            style={{ height: "70vh", border: "none" }}
+            allow="autoplay"
+          />
+          <div className="px-4 py-2 border-t border-border flex justify-end">
+            <a href={entry.assetLink!} target="_blank" rel="noopener noreferrer"
+              className="inline-flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground transition-colors">
+              <ExternalLink className="h-3.5 w-3.5" />
+              فتح في Drive
+            </a>
+          </div>
+        </DialogContent>
+      </Dialog>
+    </>
+  );
+}
 
 // ─── Day helpers ──────────────────────────────────────────────────────────────
 
@@ -50,6 +121,13 @@ function statusColor(status: string): string {
   return "bg-zinc-100 text-zinc-500 border-zinc-200";
 }
 
+function statusDot(status: string): string {
+  if (status === "تم النشر")       return "bg-green-500";
+  if (status === "جاهز للنشر")     return "bg-blue-500";
+  if (status === "جاهز للمراجعة")  return "bg-amber-400";
+  return "bg-zinc-400";
+}
+
 function customerStageColor(_f: string): string {
   return "bg-violet-50 text-violet-600";
 }
@@ -61,20 +139,28 @@ function typeColor(_t: string): string {
 // ─── Day Cell ─────────────────────────────────────────────────────────────────
 
 function DayCell({ month, day, muted }: { month: MonthValue; day: number; muted?: boolean }): ReactElement {
+  const today = new Date();
+  const isToday = today.getMonth() === MONTH_INDEX[month] && today.getDate() === day;
+
   if (muted) {
     return (
       <div className="flex items-center justify-center gap-1.5">
-        <span className="text-xs font-semibold text-muted-foreground/35 tabular-nums w-5 text-center">{day}</span>
-        <span className="text-[10px] text-muted-foreground/30">{getDayName(month, day)}</span>
+        <span className="text-[11px] font-medium text-muted-foreground/30 tabular-nums w-5 text-center">{day}</span>
+        <span className="text-[10px] text-muted-foreground/25">{getDayName(month, day)}</span>
       </div>
     );
   }
   return (
     <div className="flex items-center justify-center gap-1.5">
-      <div className="h-6 w-6 rounded-full flex items-center justify-center text-xs font-bold bg-primary/10 text-primary shrink-0">
+      <div className={cn(
+        "h-6 w-6 rounded-full flex items-center justify-center text-xs font-bold shrink-0",
+        isToday
+          ? "bg-primary text-primary-foreground ring-2 ring-primary/30"
+          : "bg-primary/8 text-primary",
+      )}>
         {day}
       </div>
-      <span className="text-[10px] font-medium text-muted-foreground">
+      <span className={cn("text-[10px] font-medium", isToday ? "text-primary font-semibold" : "text-muted-foreground")}>
         {getDayName(month, day)}
       </span>
     </div>
@@ -113,7 +199,8 @@ function ActionsMenu({
   month: MonthValue;
   onDelete: () => void;
 }): ReactElement {
-  const [viewOpen, setViewOpen] = useState(false);
+  const [viewOpen,    setViewOpen]    = useState(false);
+  const [previewOpen, setPreviewOpen] = useState(false);
 
   const handleShare = useCallback(async () => {
     const url = `${window.location.origin}/view/entry/${entry.id}`;
@@ -231,6 +318,38 @@ function ActionsMenu({
           </div>
         </DialogContent>
       </Dialog>
+
+      {/* ── Creative Preview ── */}
+      {entry.assetLink && (
+        <Dialog open={previewOpen} onOpenChange={setPreviewOpen}>
+          <DialogContent className="sm:max-w-3xl p-0 overflow-hidden gap-0">
+            <DialogHeader className="px-4 py-3 border-b border-border">
+              <DialogTitle className="text-sm font-semibold" dir="rtl">
+                {entry.idea || `يوم ${entry.day}`}
+              </DialogTitle>
+            </DialogHeader>
+            {getDriveEmbedUrl(entry.assetLink) ? (
+              <iframe
+                src={getDriveEmbedUrl(entry.assetLink)!}
+                className="w-full"
+                style={{ height: "70vh", border: "none" }}
+                allow="autoplay"
+              />
+            ) : (
+              <div className="flex items-center justify-center h-48 text-sm text-muted-foreground">
+                لا يمكن معاينة هذا النوع من الملفات
+              </div>
+            )}
+            <div className="px-4 py-2 border-t border-border flex justify-end">
+              <a href={entry.assetLink} target="_blank" rel="noopener noreferrer"
+                className="inline-flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground transition-colors">
+                <ExternalLink className="h-3.5 w-3.5" />
+                فتح في Drive
+              </a>
+            </div>
+          </DialogContent>
+        </Dialog>
+      )}
     </>
   );
 }
@@ -330,52 +449,51 @@ export function CalendarTable({
   const STATUS_FILTERS = ["الكل", ...STATUS_OPTIONS];
   const TYPE_FILTERS   = ["الكل", ...TYPE_OPTIONS];
 
+  const statusCounts = useMemo(() => {
+    const counts: Record<string, number> = {};
+    for (const e of entries) {
+      counts[e.status] = (counts[e.status] ?? 0) + 1;
+    }
+    return counts;
+  }, [entries]);
+
   function rowBorderClass(status: string): string {
-    if (status === "تم النشر")       return "border-r-green-500 bg-green-50/40 hover:bg-green-50/60";
-    if (status === "جاهز للنشر")     return "border-r-blue-500 bg-blue-50/30 hover:bg-blue-50/50";
-    if (status === "جاهز للمراجعة")  return "border-r-amber-500 bg-amber-50/30 hover:bg-amber-50/50";
-    return "border-r-zinc-300 hover:bg-muted/30";
+    if (status === "تم النشر")       return "border-r-green-400";
+    if (status === "جاهز للنشر")     return "border-r-blue-400";
+    if (status === "جاهز للمراجعة")  return "border-r-amber-400";
+    return "border-r-zinc-200";
   }
 
   return (
-    <div className="space-y-3">
+    <div className="flex flex-col h-full">
+    <div className="flex-1 overflow-y-auto p-4 space-y-3 min-h-0">
       {/* Toolbar */}
       <div className="flex flex-wrap items-center gap-2">
-
-        {/* Search */}
-        <div className="relative">
-          <Search className="absolute right-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground pointer-events-none" />
-          <Input
-            placeholder="بحث..."
-            value={searchQ}
-            onChange={(e) => setSearchQ(e.target.value)}
-            className="h-8 w-44 text-xs pr-8 pl-7"
-          />
-          {searchQ && (
-            <button type="button" onClick={() => setSearchQ("")}
-              className="absolute left-2 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors">
-              <X className="h-3 w-3" />
-            </button>
-          )}
-        </div>
-
-        <div className="h-5 w-px bg-border" />
 
         {/* Status filter */}
         <div className="flex items-center gap-1">
           <span className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground/60 shrink-0 ml-1">الحالة</span>
           <div className="flex gap-1">
-            {STATUS_FILTERS.map((s) => (
-              <button key={s} type="button" onClick={() => setFilterStatus(s)}
-                className={cn(
-                  "rounded-md px-2.5 py-1 text-[11px] font-medium transition-all border",
-                  filterStatus === s
-                    ? "bg-primary text-primary-foreground border-primary shadow-sm"
-                    : "bg-transparent text-muted-foreground border-transparent hover:border-border hover:text-foreground",
-                )}>
-                {s === "الكل" ? "الكل" : s}
-              </button>
-            ))}
+            {STATUS_FILTERS.map((s) => {
+              const count = s === "الكل" ? entries.length : (statusCounts[s] ?? 0);
+              return (
+                <button key={s} type="button" onClick={() => setFilterStatus(s)}
+                  className={cn(
+                    "rounded-md px-2.5 py-1 text-[11px] font-medium transition-all border inline-flex items-center gap-1.5",
+                    filterStatus === s
+                      ? "bg-primary text-primary-foreground border-primary shadow-sm"
+                      : "bg-transparent text-muted-foreground border-transparent hover:border-border hover:text-foreground",
+                  )}>
+                  {s === "الكل" ? "الكل" : s}
+                  <span className={cn(
+                    "tabular-nums text-[10px] font-bold rounded-full min-w-4 text-center leading-4 px-1",
+                    filterStatus === s
+                      ? "bg-primary-foreground/20 text-primary-foreground"
+                      : "bg-muted text-muted-foreground",
+                  )}>{count}</span>
+                </button>
+              );
+            })}
           </div>
         </div>
 
@@ -421,17 +539,6 @@ export function CalendarTable({
           </DropdownMenuContent>
         </DropdownMenu>
 
-        {/* Hide empty toggle */}
-        <button type="button" onClick={() => setHideEmpty((v) => !v)}
-          className={cn(
-            "flex items-center gap-1 text-[11px] font-medium transition-all border rounded-md px-2.5 py-1",
-            hideEmpty
-              ? "bg-primary text-primary-foreground border-primary"
-              : "bg-transparent text-muted-foreground border-transparent hover:border-border hover:text-foreground",
-          )}>
-          المنشورات فقط
-        </button>
-
         {/* Reset filter */}
         {isFiltered && (
           <button type="button"
@@ -457,47 +564,48 @@ export function CalendarTable({
           </div>
         ) : (
           <Table>
-            <TableHeader className="bg-muted/40 sticky top-0 z-10">
-              <TableRow className="border-b border-border">
-                <TableHead className="w-20 text-center p-2 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">اليوم</TableHead>
-                <TableHead className="p-2 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
+            <TableHeader className="sticky top-0 z-10">
+              <TableRow className="border-b border-gray-300" style={{ backgroundColor: '#e2e8f0' }}>
+                <TableHead className="w-24 text-center px-3 py-3 text-[10px] font-bold uppercase tracking-widest text-zinc-600">اليوم</TableHead>
+                <TableHead className="px-3 py-3 text-[10px] font-bold uppercase tracking-widest text-zinc-600">
                   <button type="button" onClick={() => toggleSort("idea")}
-                    className="flex items-center gap-1 hover:text-foreground transition-colors">
+                    className="inline-flex items-center gap-1.5 hover:text-foreground transition-colors">
                     الفكرة
-                    {sortCol === "idea" ? (sortDir === "asc" ? <ArrowUp className="h-3 w-3" /> : <ArrowDown className="h-3 w-3" />) : <ArrowUpDown className="h-3 w-3 opacity-40" />}
+                    {sortCol === "idea" ? (sortDir === "asc" ? <ArrowUp className="h-3 w-3" /> : <ArrowDown className="h-3 w-3" />) : <ArrowUpDown className="h-3 w-3 opacity-30" />}
                   </button>
                 </TableHead>
                 {isVisible("contentType") && (
-                  <TableHead className="w-20 p-2 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
+                  <TableHead className="w-24 px-3 py-3 text-[10px] font-bold uppercase tracking-widest text-zinc-600">
                     <button type="button" onClick={() => toggleSort("contentType")}
-                      className="flex items-center gap-1 hover:text-foreground transition-colors">
+                      className="inline-flex items-center gap-1.5 hover:text-foreground transition-colors">
                       النوع
-                      {sortCol === "contentType" ? (sortDir === "asc" ? <ArrowUp className="h-3 w-3" /> : <ArrowDown className="h-3 w-3" />) : <ArrowUpDown className="h-3 w-3 opacity-40" />}
+                      {sortCol === "contentType" ? (sortDir === "asc" ? <ArrowUp className="h-3 w-3" /> : <ArrowDown className="h-3 w-3" />) : <ArrowUpDown className="h-3 w-3 opacity-30" />}
                     </button>
                   </TableHead>
                 )}
                 {isVisible("customerStage") && (
-                  <TableHead className="w-36 p-2 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
+                  <TableHead className="w-36 px-3 py-3 text-[10px] font-bold uppercase tracking-widest text-zinc-600">
                     <button type="button" onClick={() => toggleSort("customerStage")}
-                      className="flex items-center gap-1 hover:text-foreground transition-colors">
+                      className="inline-flex items-center gap-1.5 hover:text-foreground transition-colors">
                       مرحلة العميل
-                      {sortCol === "customerStage" ? (sortDir === "asc" ? <ArrowUp className="h-3 w-3" /> : <ArrowDown className="h-3 w-3" />) : <ArrowUpDown className="h-3 w-3 opacity-40" />}
+                      {sortCol === "customerStage" ? (sortDir === "asc" ? <ArrowUp className="h-3 w-3" /> : <ArrowDown className="h-3 w-3" />) : <ArrowUpDown className="h-3 w-3 opacity-30" />}
                     </button>
                   </TableHead>
                 )}
                 {isVisible("channels") && (
-                  <TableHead className="w-28 p-2 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">القنوات</TableHead>
+                  <TableHead className="w-28 px-3 py-3 text-[10px] font-bold uppercase tracking-widest text-zinc-600">القنوات</TableHead>
                 )}
                 {isVisible("status") && (
-                  <TableHead className="w-36 p-2 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
+                  <TableHead className="w-40 px-3 py-3 text-[10px] font-bold uppercase tracking-widest text-zinc-600">
                     <button type="button" onClick={() => toggleSort("status")}
-                      className="flex items-center gap-1 hover:text-foreground transition-colors">
+                      className="inline-flex items-center gap-1.5 hover:text-foreground transition-colors">
                       الحالة
-                      {sortCol === "status" ? (sortDir === "asc" ? <ArrowUp className="h-3 w-3" /> : <ArrowDown className="h-3 w-3" />) : <ArrowUpDown className="h-3 w-3 opacity-40" />}
+                      {sortCol === "status" ? (sortDir === "asc" ? <ArrowUp className="h-3 w-3" /> : <ArrowDown className="h-3 w-3" />) : <ArrowUpDown className="h-3 w-3 opacity-30" />}
                     </button>
                   </TableHead>
                 )}
-                <TableHead className="w-10 p-2" />
+                <TableHead className="w-12 text-center px-2 py-3 text-[10px] font-bold uppercase tracking-widest text-zinc-600">كريتيف</TableHead>
+                <TableHead className="w-10 px-2 py-2.5" />
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -512,37 +620,37 @@ export function CalendarTable({
                 ) : (
                   sortedFiltered.map((entry) => (
                     <TableRow key={entry.id} className={cn(
-                      "transition-colors border-r-2 hover:bg-muted/20",
+                      "group transition-all duration-150 border-r-2 cursor-pointer hover:bg-muted/40",
                       rowBorderClass(entry.status),
                     )}>
-                      <TableCell className="text-center p-2 py-3">
+                      <TableCell className="text-center px-3 py-2.5">
                         <DayCell month={month} day={entry.day} />
                       </TableCell>
-                      <TableCell className="p-2">
-                        <p className="text-sm font-medium text-foreground" title={entry.idea}>
+                      <TableCell className="px-3 py-2.5">
+                        <p className="text-sm font-medium text-foreground leading-snug" title={entry.idea}>
                           {entry.idea || <span className="text-muted-foreground italic text-xs">بدون فكرة</span>}
                         </p>
                       </TableCell>
                       {isVisible("contentType") && (
-                        <TableCell className="p-2">
+                        <TableCell className="px-3 py-2.5">
                           {entry.contentType ? (
-                            <span className={cn("rounded-md px-2 py-0.5 text-[10px] font-medium", typeColor(entry.contentType))}>
+                            <span className={cn("rounded-full px-2.5 py-0.5 text-[10px] font-semibold", typeColor(entry.contentType))}>
                               {TYPE_LABELS[entry.contentType] ?? entry.contentType}
                             </span>
-                          ) : "—"}
+                          ) : <span className="text-muted-foreground/40 text-xs">—</span>}
                         </TableCell>
                       )}
                       {isVisible("customerStage") && (
-                        <TableCell className="p-2">
+                        <TableCell className="px-3 py-2.5">
                           <div className="flex flex-wrap gap-1">
                             {entry.customerStage.map((f) => (
-                              <span key={f} className={cn("rounded-md px-2 py-0.5 text-[10px] font-medium", customerStageColor(f))}>{f}</span>
+                              <span key={f} className={cn("rounded-full px-2.5 py-0.5 text-[10px] font-semibold", customerStageColor(f))}>{f}</span>
                             ))}
                           </div>
                         </TableCell>
                       )}
                       {isVisible("channels") && (
-                        <TableCell className="p-2">
+                        <TableCell className="px-3 py-2.5">
                           <div className="flex items-center gap-1.5">
                             {entry.channels.slice(0, 4).map((ch) => (
                               <ChannelIcon key={ch} channel={ch} />
@@ -554,14 +662,20 @@ export function CalendarTable({
                         </TableCell>
                       )}
                       {isVisible("status") && (
-                        <TableCell className="p-2">
-                          <span className={cn("rounded-md border px-2 py-0.5 text-[10px] font-medium", statusColor(entry.status))}>
+                        <TableCell className="px-3 py-2.5">
+                          <span className={cn("inline-flex items-center gap-1.5 rounded-full border px-2.5 py-0.5 text-[10px] font-semibold", statusColor(entry.status))}>
+                            <span className={cn("h-1.5 w-1.5 rounded-full shrink-0", statusDot(entry.status))} />
                             {entry.status}
                           </span>
                         </TableCell>
                       )}
-                      <TableCell className="p-2">
-                        <ActionsMenu entry={entry} slug={slug} month={month} onDelete={() => setDeleteTargetId(entry.id)} />
+                      <TableCell className="px-2 py-2.5 text-center">
+                        <CreativeCell entry={entry} />
+                      </TableCell>
+                      <TableCell className="px-2 py-2.5">
+                        <div className="opacity-0 group-hover:opacity-100 transition-opacity duration-150">
+                          <ActionsMenu entry={entry} slug={slug} month={month} onDelete={() => setDeleteTargetId(entry.id)} />
+                        </div>
                       </TableCell>
                     </TableRow>
                   ))
@@ -574,8 +688,8 @@ export function CalendarTable({
                   if (dayEntries.length === 0) {
                     if (hideEmpty) return null;
                     return (
-                      <TableRow key={`empty-${day}`} className="bg-transparent hover:bg-muted/10 transition-colors h-7 border-r-2 border-r-transparent">
-                        <TableCell className="text-center px-2 py-0">
+                      <TableRow key={`empty-${day}`} className="h-6 border-r-2 border-r-transparent hover:bg-muted/20 transition-colors">
+                        <TableCell className="text-center px-3 py-0">
                           <DayCell month={month} day={day} muted />
                         </TableCell>
                         <TableCell colSpan={6} className="p-0" />
@@ -585,40 +699,40 @@ export function CalendarTable({
                   return dayEntries.map((entry, idx) => (
                     <Fragment key={entry.id}>
                       <TableRow className={cn(
-                        "transition-colors border-r-2",
+                        "group transition-all duration-150 border-r-2 cursor-pointer hover:bg-muted/40",
                         rowBorderClass(entry.status),
                       )}>
-                        <TableCell className="text-center p-2 py-3">
+                        <TableCell className="text-center px-3 py-2.5">
                           {idx === 0
                             ? <DayCell month={month} day={day} />
                             : <DayCell month={month} day={day} muted />}
                         </TableCell>
-                        <TableCell className="p-2">
-                          <p className="text-sm font-medium text-foreground" title={entry.idea}>
+                        <TableCell className="px-3 py-2.5">
+                          <p className="text-sm font-medium text-foreground leading-snug" title={entry.idea}>
                             {entry.idea || <span className="text-muted-foreground italic text-xs">بدون فكرة</span>}
                           </p>
                         </TableCell>
                         {isVisible("contentType") && (
-                          <TableCell className="p-2">
+                          <TableCell className="px-3 py-2.5">
                             {entry.contentType ? (
-                              <span className={cn("rounded-md px-2 py-0.5 text-[10px] font-medium", typeColor(entry.contentType))}>
+                              <span className={cn("rounded-full px-2.5 py-0.5 text-[10px] font-semibold", typeColor(entry.contentType))}>
                                 {TYPE_LABELS[entry.contentType] ?? entry.contentType}
                               </span>
-                            ) : "—"}
+                            ) : <span className="text-muted-foreground/40 text-xs">—</span>}
                           </TableCell>
                         )}
                         {isVisible("customerStage") && (
-                          <TableCell className="p-2">
+                          <TableCell className="px-3 py-2.5">
                             <div className="flex flex-wrap gap-1">
                               {entry.customerStage.map((f) => (
-                                <span key={f} className={cn("rounded-md px-2 py-0.5 text-[10px] font-medium", customerStageColor(f))}>{f}</span>
+                                <span key={f} className={cn("rounded-full px-2.5 py-0.5 text-[10px] font-semibold", customerStageColor(f))}>{f}</span>
                               ))}
                             </div>
                           </TableCell>
                         )}
                         {isVisible("channels") && (
-                          <TableCell className="p-2">
-                            <div className="flex items-center gap-1">
+                          <TableCell className="px-3 py-2.5">
+                            <div className="flex items-center gap-1.5">
                               {entry.channels.map((ch) => (
                                 <ChannelIcon
                                   key={ch}
@@ -630,14 +744,20 @@ export function CalendarTable({
                           </TableCell>
                         )}
                         {isVisible("status") && (
-                          <TableCell className="p-2">
-                            <span className={cn("rounded-md border px-2 py-0.5 text-[10px] font-medium", statusColor(entry.status))}>
+                          <TableCell className="px-3 py-2.5">
+                            <span className={cn("inline-flex items-center gap-1.5 rounded-full border px-2.5 py-0.5 text-[10px] font-semibold", statusColor(entry.status))}>
+                              <span className={cn("h-1.5 w-1.5 rounded-full shrink-0", statusDot(entry.status))} />
                               {entry.status}
                             </span>
                           </TableCell>
                         )}
-                        <TableCell className="p-2">
-                          <ActionsMenu entry={entry} slug={slug} month={month} onDelete={() => setDeleteTargetId(entry.id)} />
+                        <TableCell className="px-2 py-2.5 text-center">
+                          <CreativeCell entry={entry} />
+                        </TableCell>
+                        <TableCell className="px-2 py-2.5">
+                          <div className="opacity-0 group-hover:opacity-100 transition-opacity duration-150">
+                            <ActionsMenu entry={entry} slug={slug} month={month} onDelete={() => setDeleteTargetId(entry.id)} />
+                          </div>
                         </TableCell>
                       </TableRow>
                     </Fragment>
@@ -646,6 +766,61 @@ export function CalendarTable({
               )}
             </TableBody>
           </Table>
+        )}
+      </div>
+
+    </div>{/* end scrollable area */}
+
+      {/* Summary bar — fixed outside scroll */}
+      <div className="shrink-0 border-t border-border bg-card px-4 py-3 flex flex-wrap items-center gap-x-5 gap-y-2 shadow-[0_-4px_12px_rgba(0,0,0,0.06)]">
+        <span className="text-xs font-semibold text-muted-foreground shrink-0">الإجمالي</span>
+        <span className="text-sm font-bold text-foreground tabular-nums">{entries.length} منشور</span>
+        <div className="h-4 w-px bg-border shrink-0" />
+        {(["قيد الإنتاج", "جاهز للمراجعة", "جاهز للنشر", "تم النشر"] as const).map((s) => {
+          const count = statusCounts[s] ?? 0;
+          if (count === 0) return null;
+          const cls =
+            s === "تم النشر"      ? "bg-green-50 text-green-700 border-green-200" :
+            s === "جاهز للنشر"    ? "bg-blue-50  text-blue-700  border-blue-200"  :
+            s === "جاهز للمراجعة" ? "bg-amber-50 text-amber-700 border-amber-200" :
+                                     "bg-zinc-100 text-zinc-600  border-zinc-200";
+          return (
+            <div key={s} className="flex items-center gap-2">
+              <span className={cn("rounded-full border px-2.5 py-0.5 text-xs font-bold tabular-nums", cls)}>{count}</span>
+              <span className="text-xs text-muted-foreground">{s}</span>
+            </div>
+          );
+        })}
+        {entries.length > 0 && (
+          <>
+            <div className="h-4 w-px bg-border shrink-0 mr-auto" />
+            {/* Search */}
+            <div className="relative flex-1 min-w-0">
+              <Search className="absolute right-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground pointer-events-none" />
+              <Input
+                placeholder="بحث..."
+                value={searchQ}
+                onChange={(e) => setSearchQ(e.target.value)}
+                className="h-8 w-full text-xs pr-8 pl-7"
+              />
+              {searchQ && (
+                <button type="button" onClick={() => setSearchQ("")}
+                  className="absolute left-2 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors">
+                  <X className="h-3 w-3" />
+                </button>
+              )}
+            </div>
+            {/* Hide empty checkbox */}
+            <label className="flex items-center gap-2 shrink-0 cursor-pointer select-none">
+              <input
+                type="checkbox"
+                checked={hideEmpty}
+                onChange={(e) => setHideEmpty(e.target.checked)}
+                className="h-3.5 w-3.5 rounded accent-primary cursor-pointer"
+              />
+              <span className="text-[11px] font-medium text-muted-foreground">{hideEmpty ? "عرض الكل" : "إخفاء الفارغة"}</span>
+            </label>
+          </>
         )}
       </div>
 

@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useParams } from "next/navigation";
 import { MONTHS } from "@/lib/constants";
 import { cn } from "@/lib/utils";
+import { version } from "@/package.json";
 
 type Props = { slug: string; counts?: Record<string, number> };
 
@@ -17,9 +18,12 @@ export function MonthSidebar({ slug, counts = {} }: Props) {
     <aside className="flex flex-col border-r border-border bg-card shrink-0 w-40">
       {/* Header */}
       <div className="px-4 pt-4 pb-3 border-b border-border shrink-0">
-        <p className="text-[10px] font-bold tracking-[0.12em] uppercase text-muted-foreground/60">
-          {year}
-        </p>
+        <div className="flex items-center justify-between">
+          <p className="text-[10px] font-bold tracking-[0.12em] uppercase text-muted-foreground/60">
+            {year}
+          </p>
+          <span className="text-[10px] font-mono font-semibold text-muted-foreground/60 bg-muted px-1.5 py-0.5 rounded select-none">v{version}</span>
+        </div>
         <p className="text-xs text-muted-foreground mt-0.5">
           <span className="font-semibold text-foreground tabular-nums">{total}</span>{" "}
           منشور
