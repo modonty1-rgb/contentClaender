@@ -257,6 +257,7 @@ export function CalendarTable({
   const [sortCol, setSortCol]           = useState<string | null>(null);
   const [sortDir, setSortDir]           = useState<"asc" | "desc">("asc");
   const [colVis, setColVis]             = useState<Record<string, boolean>>({});
+  const [hideEmpty, setHideEmpty]       = useState(false);
 
   function toggleSort(col: string) {
     if (sortCol === col) {
@@ -420,6 +421,17 @@ export function CalendarTable({
           </DropdownMenuContent>
         </DropdownMenu>
 
+        {/* Hide empty toggle */}
+        <button type="button" onClick={() => setHideEmpty((v) => !v)}
+          className={cn(
+            "flex items-center gap-1 text-[11px] font-medium transition-all border rounded-md px-2.5 py-1",
+            hideEmpty
+              ? "bg-primary text-primary-foreground border-primary"
+              : "bg-transparent text-muted-foreground border-transparent hover:border-border hover:text-foreground",
+          )}>
+          المنشورات فقط
+        </button>
+
         {/* Reset filter */}
         {isFiltered && (
           <button type="button"
@@ -560,6 +572,7 @@ export function CalendarTable({
                   const dayEntries = groupedByDay.get(day) ?? [];
                   if (isFiltered && dayEntries.length === 0) return null;
                   if (dayEntries.length === 0) {
+                    if (hideEmpty) return null;
                     return (
                       <TableRow key={`empty-${day}`} className="bg-transparent hover:bg-muted/10 transition-colors h-7 border-r-2 border-r-transparent">
                         <TableCell className="text-center px-2 py-0">
@@ -576,7 +589,9 @@ export function CalendarTable({
                         rowBorderClass(entry.status),
                       )}>
                         <TableCell className="text-center p-2 py-3">
-                          {idx === 0 ? <DayCell month={month} day={day} /> : null}
+                          {idx === 0
+                            ? <DayCell month={month} day={day} />
+                            : <DayCell month={month} day={day} muted />}
                         </TableCell>
                         <TableCell className="p-2">
                           <p className="text-sm font-medium text-foreground" title={entry.idea}>

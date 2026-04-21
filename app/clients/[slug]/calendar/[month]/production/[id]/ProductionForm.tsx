@@ -1,7 +1,7 @@
 "use client";
 
 import type { ReactElement, ReactNode } from "react";
-import { useState, useTransition } from "react";
+import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { ExternalLink, CheckCircle2, Link2, AlertCircle } from "lucide-react";
 import {
@@ -108,7 +108,7 @@ type Props = {
 export function ProductionForm({ entry, slug, month }: Props): ReactElement {
   const router = useRouter();
   const [assetLink, setAssetLink] = useState(entry.assetLink ?? "");
-  const [saving, startSave] = useTransition();
+  const [saving, setSaving] = useState(false);
 
   const isFullyLocked = entry.status === "جاهز للنشر" || entry.status === "تم النشر";
   const isReview      = entry.status === "جاهز للمراجعة";
@@ -118,8 +118,9 @@ export function ProductionForm({ entry, slug, month }: Props): ReactElement {
   const TypeIcon      = typeMeta?.icon;
   const stageItems    = entry.customerStage.map((s) => STAGE_META[s]).filter(Boolean);
 
-  function handleMarkReady() {
-    startSave(async () => {
+  async function handleMarkReady() {
+    setSaving(true);
+    try {
       await updateEntry(entry.id, { assetLink: assetLink.trim() || null });
       const result = await updateStatus(entry.id, "جاهز للمراجعة");
       if (result.success) {
@@ -131,11 +132,14 @@ export function ProductionForm({ entry, slug, month }: Props): ReactElement {
       } else {
         toast.error(result.error);
       }
-    });
+    } finally {
+      setSaving(false);
+    }
   }
 
-  function handleApprove() {
-    startSave(async () => {
+  async function handleApprove() {
+    setSaving(true);
+    try {
       const result = await updateStatus(entry.id, "جاهز للنشر");
       if (result.success) {
         toast.success("تمت الموافقة — جاهز للنشر");
@@ -146,18 +150,23 @@ export function ProductionForm({ entry, slug, month }: Props): ReactElement {
       } else {
         toast.error(result.error);
       }
-    });
+    } finally {
+      setSaving(false);
+    }
   }
 
-  function handleUpdateLink() {
-    startSave(async () => {
+  async function handleUpdateLink() {
+    setSaving(true);
+    try {
       const result = await updateEntry(entry.id, { assetLink: assetLink.trim() || null });
       if (result.success) {
         toast.success("تم تحديث الرابط");
       } else {
         toast.error(result.error ?? "حدث خطأ");
       }
-    });
+    } finally {
+      setSaving(false);
+    }
   }
 
   return (

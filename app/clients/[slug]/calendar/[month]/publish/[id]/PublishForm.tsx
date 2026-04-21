@@ -1,7 +1,7 @@
 "use client";
 
 import type { ReactElement } from "react";
-import { useState, useTransition } from "react";
+import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { ExternalLink, CheckCircle2, Send } from "lucide-react";
 import { Button } from "@/app/components/ui/button";
@@ -76,7 +76,7 @@ export function PublishForm({ entry, slug, month }: Props): ReactElement {
   );
   const [scheduledTime, setScheduledTime] = useState(entry.scheduledTime ?? "");
   const [links,        setLinks]        = useState<Record<string, string>>(existingLinks);
-  const [saving, startSave] = useTransition();
+  const [saving, setSaving] = useState(false);
 
   const isPublished = entry.status === "تم النشر";
 
@@ -92,19 +92,23 @@ export function PublishForm({ entry, slug, month }: Props): ReactElement {
     };
   }
 
-  function handleSave() {
-    startSave(async () => {
+  async function handleSave() {
+    setSaving(true);
+    try {
       const result = await updateEntry(entry.id, buildPayload());
       if (result.success) {
         toast.success("تم الحفظ");
       } else {
         toast.error(result.error);
       }
-    });
+    } finally {
+      setSaving(false);
+    }
   }
 
-  function handlePublish() {
-    startSave(async () => {
+  async function handlePublish() {
+    setSaving(true);
+    try {
       await updateEntry(entry.id, buildPayload());
       const result = await updateStatus(entry.id, "تم النشر");
       if (result.success) {
@@ -116,7 +120,9 @@ export function PublishForm({ entry, slug, month }: Props): ReactElement {
       } else {
         toast.error(result.error);
       }
-    });
+    } finally {
+      setSaving(false);
+    }
   }
 
   return (
