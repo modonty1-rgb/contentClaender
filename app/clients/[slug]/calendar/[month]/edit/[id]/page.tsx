@@ -1,7 +1,7 @@
 import { notFound } from "next/navigation";
 import Link from "next/link";
 import { ArrowRight } from "lucide-react";
-import { getEntryById } from "@/app/actions/entries";
+import { getEntryById, getEntriesByMonth } from "@/app/actions/entries";
 import { getClientBySlug } from "@/app/actions/clients";
 import { MONTHS } from "@/lib/constants";
 import type { MonthValue } from "@/lib/constants";
@@ -23,39 +23,28 @@ export default async function EditEntryPage({ params }: Props) {
   if (!monthMeta) notFound();
   if (!entry) notFound();
 
+  const entries = await getEntriesByMonth(month, client.id);
+  const entryDays = [...new Set(entries.map((e) => e.day))];
+
   const defaultValues: EntryPageFormData = {
-    day:            entry.day,
-    idea:           entry.idea ?? "",
-    funnel:         entry.funnel ?? [],
-    typeOfContent:  entry.typeOfContent ?? "",
-    orgPaid:        entry.orgPaid ?? "organic",
-    publishing:     entry.publishing ?? "لم يتم النشر",
-    channels:       entry.channels ?? [],
-    captionSA:      entry.captionSA ?? "",
-    captionEG:      entry.captionEG ?? "",
-    script:         entry.script ?? "",
-    tov:            entry.tov ?? "",
-    reference:      entry.reference ?? "",
-    postVidLinks:   entry.postVidLinks ?? "",
-    reelLink:       entry.reelLink ?? "",
-    publishingDate: entry.publishingDate
-      ? new Date(entry.publishingDate).toISOString().split("T")[0]
-      : "",
-    publishingTime: entry.publishingTime ?? "",
-    code:           entry.code ?? "",
-    notes:          entry.notes ?? "",
-    reviewed:       entry.reviewed ?? "",
-    readyToPublish: entry.readyToPublish ?? "",
-    contentLink:    entry.contentLink ?? "",
-    storyboard:     entry.storyboard ?? "",
-    material:       entry.material ?? "",
-    size:           entry.size ?? "",
+    day:           entry.day,
+    idea:          entry.idea ?? "",
+    customerStage: entry.customerStage ?? [],
+    contentType:   entry.contentType ?? "",
+    channels:      entry.channels ?? [],
+    text:          entry.text ?? "",
+    hook:          entry.hook ?? "",
+    cta:           entry.cta ?? "",
+    script:        entry.script ?? "",
+    voiceTone:     entry.voiceTone ?? "",
+    inspiration:   entry.inspiration ?? "",
+    notes:         entry.notes ?? "",
   };
 
   return (
     <div className="min-h-screen bg-muted/30" dir="rtl">
       <header className="border-b border-border bg-card px-4 py-3 shadow-sm sticky top-0 z-10">
-        <div className="mx-auto max-w-3xl flex items-center gap-3">
+        <div className="mx-auto max-w-6xl flex items-center gap-3">
           <Link
             href={`/clients/${slug}/calendar/${month}`}
             className="flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground hover:bg-muted rounded-md px-2 py-1 transition-colors -mx-2"
@@ -71,7 +60,7 @@ export default async function EditEntryPage({ params }: Props) {
         </div>
       </header>
 
-      <main className="mx-auto max-w-3xl p-4 pt-6">
+      <main className="mx-auto max-w-6xl p-4 pt-6">
         <EntryPageForm
           mode="edit"
           entryId={id}
@@ -80,6 +69,7 @@ export default async function EditEntryPage({ params }: Props) {
           month={month as MonthValue}
           monthLabel={monthMeta.label}
           defaultValues={defaultValues}
+          entryDays={entryDays}
         />
       </main>
     </div>

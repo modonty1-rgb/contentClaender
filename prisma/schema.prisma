@@ -8,47 +8,63 @@ datasource db {
 }
 
 model Client {
-  id        String   @id @default(auto()) @map("_id") @db.ObjectId
+  id        String         @id @default(auto()) @map("_id") @db.ObjectId
   name      String
-  slug      String   @unique
-  color     String   @default("#6366f1")
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  slug      String         @unique
+  color     String         @default("#6366f1")
+  entries   ContentEntry[]
+  createdAt DateTime       @default(now())
+  updatedAt DateTime       @updatedAt
 }
 
 model ContentEntry {
-  id             String    @id @default(auto()) @map("_id") @db.ObjectId
-  clientId       String?   @db.ObjectId
-  month          String
-  day            Int
-  idea           String    @default("")
-  funnel         String[]
-  typeOfContent  String    @default("")
-  orgPaid        String    @default("")
-  captionSA      String?
-  captionEG      String?
-  script         String?
-  tov            String?
-  reference      String?
-  publishing     String    @default("لم يتم النشر")
-  channels       String[]
-  postVidLinks   String?
-  reelLink       String?
-  publishingDate DateTime?
-  publishingTime String?
-  code           String?
-  notes          String?
-  reviewed       String?
-  readyToPublish String?
-  contentLink    String?
-  storyboard     String?
-  material       String?
-  size           String?
-  createdAt      DateTime  @default(now())
-  updatedAt      DateTime  @updatedAt
+  id       String  @id @default(auto()) @map("_id") @db.ObjectId
+  client   Client? @relation(fields: [clientId], references: [id])
+  clientId String? @db.ObjectId
+  month    String
+  day      Int
+
+  // ── Status ─────────────────────────────────────────────────────────────────
+  status          String   @default("قيد الإنتاج")
+  statusUpdatedAt DateTime @default(now())
+
+  // ── Timeline (for analytics) ────────────────────────────────────────────────
+  productionStartedAt   DateTime?  // لما كاتب المحتوى يحفظ التاسك
+  productionCompletedAt DateTime?  // لما المصمم / الإديتور يرفع الملف
+  publishedAt           DateTime?  // لما الميديا باير ينشر فعلياً
+
+  // ── كاتب المحتوى ────────────────────────────────────────────────────────────
+  contentType   String   @default("")
+  customerStage String[]
+  channels      String[]
+  idea          String   @default("")
+  text          String?
+  hook          String?
+  cta           String?
+  script        String?
+  voiceTone     String?
+  inspiration   String?
+  notes         String?
+
+  // ── الإنتاج ─────────────────────────────────────────────────────────────────
+  assetLink String?
+
+  // ── الميديا باير ────────────────────────────────────────────────────────────
+  orgPaid       String?
+  budget        Float?
+  currency      String?   // SAR | USD | EGP
+  adDuration    Int?
+  scheduledDate DateTime?
+  scheduledTime String?
+  channelLinks  Json?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   @@index([clientId])
-  @@index([month])
   @@index([clientId, month])
+  @@index([month])
   @@index([month, day])
+  @@index([status])
+  @@index([clientId, status])
 }

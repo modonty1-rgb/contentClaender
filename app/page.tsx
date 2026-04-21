@@ -3,6 +3,7 @@ import { Calendar, ExternalLink } from "lucide-react";
 import { getClients } from "@/app/actions/clients";
 import { NewClientDialog } from "@/app/components/NewClientDialog";
 import { DeleteClientButton } from "@/app/components/DeleteClientButton";
+import { EditClientButton } from "@/app/components/EditClientButton";
 import { MONTHS } from "@/lib/constants";
 import { version } from "@/package.json";
 
@@ -71,14 +72,17 @@ export default async function DashboardPage() {
                         <p className="text-[11px] text-muted-foreground font-mono">{client.slug}</p>
                       </div>
                     </div>
-                    <DeleteClientButton clientId={client.id} clientName={client.name} />
+                    <div className="flex items-center gap-1">
+                      <EditClientButton clientId={client.id} clientName={client.name} clientColor={client.color} />
+                      <DeleteClientButton clientId={client.id} clientName={client.name} />
+                    </div>
                   </div>
 
                   {/* Stats */}
                   <div className="flex gap-4 mb-4">
                     <div>
                       <p className="text-2xl font-bold text-foreground tabular-nums">{client.totalEntries}</p>
-                      <p className="text-[11px] text-muted-foreground">تاسك</p>
+                      <p className="text-[11px] text-muted-foreground">منشور</p>
                     </div>
                     <div className="w-px bg-border" />
                     <div>

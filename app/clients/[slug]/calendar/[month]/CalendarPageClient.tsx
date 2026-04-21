@@ -54,6 +54,7 @@ export function CalendarPageClient({
       monthLabel={monthLabel}
       loading={loading}
       onDelete={handleDelete}
+      onReload={reload}
     />
   );
 }

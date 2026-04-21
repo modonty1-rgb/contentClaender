@@ -53,7 +53,7 @@ export function DeleteClientButton({
           <AlertDialogHeader>
             <AlertDialogTitle>حذف {clientName}</AlertDialogTitle>
             <AlertDialogDescription>
-              سيتم حذف العميل وجميع تاسكاته نهائياً. لا يمكن التراجع.
+              سيتم حذف العميل وجميع منشوراته نهائياً. لا يمكن التراجع.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>

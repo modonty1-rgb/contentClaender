@@ -15,7 +15,6 @@ export default async function ViewEntryPage({ params }: Props) {
 
   return (
     <div className="min-h-screen bg-muted/30" dir="rtl">
-      {/* Header */}
       <header className="border-b border-border bg-card px-4 py-3 shadow-sm">
         <div className="mx-auto max-w-2xl flex items-center justify-between">
           <div>
@@ -30,7 +29,6 @@ export default async function ViewEntryPage({ params }: Props) {
         </div>
       </header>
 
-      {/* Card */}
       <main className="mx-auto max-w-2xl p-4 space-y-4">
 
         {/* Title */}
@@ -43,16 +41,13 @@ export default async function ViewEntryPage({ params }: Props) {
 
         {/* Meta chips */}
         <div className="flex flex-wrap gap-2">
-          {entry.typeOfContent && (
-            <Chip label="النوع" value={entry.typeOfContent} color={typeColor(entry.typeOfContent)} />
+          {entry.contentType && (
+            <Chip label="النوع" value={entry.contentType} color={typeColor(entry.contentType)} />
           )}
-          {entry.funnel.map((f) => (
-            <Chip key={f} label="Funnel" value={f} color={funnelColor(f)} />
+          {entry.customerStage.map((s) => (
+            <Chip key={s} label="مرحلة العميل" value={s} color="bg-violet-50 text-violet-700 border-violet-200" />
           ))}
-          {entry.orgPaid && (
-            <Chip label="نوعية النشر" value={entry.orgPaid} />
-          )}
-          <Chip label="حالة النشر" value={entry.publishing} color={publishingColor(entry.publishing)} />
+          <Chip label="الحالة" value={entry.status} color={statusColor(entry.status)} />
         </div>
 
         {/* Channels */}
@@ -68,21 +63,30 @@ export default async function ViewEntryPage({ params }: Props) {
           </Section>
         )}
 
-        {/* Captions */}
-        {entry.captionSA && (
-          <Section title="Caption SA 🇸🇦">
-            <p className="text-sm text-foreground whitespace-pre-wrap leading-relaxed">{entry.captionSA}</p>
-          </Section>
-        )}
-        {entry.captionEG && (
-          <Section title="Caption EG 🇪🇬">
-            <p className="text-sm text-foreground whitespace-pre-wrap leading-relaxed">{entry.captionEG}</p>
+        {/* النص */}
+        {entry.text && (
+          <Section title="النص">
+            <p className="text-sm text-foreground whitespace-pre-wrap leading-relaxed">{entry.text}</p>
           </Section>
         )}
 
-        {/* Script */}
+        {/* الخطاف */}
+        {entry.hook && (
+          <Section title="الخطاف">
+            <p className="text-sm text-foreground">{entry.hook}</p>
+          </Section>
+        )}
+
+        {/* الدعوة */}
+        {entry.cta && (
+          <Section title="الدعوة">
+            <p className="text-sm text-foreground">{entry.cta}</p>
+          </Section>
+        )}
+
+        {/* السكريبت */}
         {entry.script && (
-          <Section title="Script / السكريبت">
+          <Section title="السكريبت">
             {entry.script.startsWith("http") ? (
               <LinkRow href={entry.script} label={entry.script} />
             ) : (
@@ -91,103 +95,56 @@ export default async function ViewEntryPage({ params }: Props) {
           </Section>
         )}
 
-        {/* TOV */}
-        {entry.tov && (
-          <Section title="TOV — نبرة الصوت">
-            <p className="text-sm text-foreground whitespace-pre-wrap">{entry.tov}</p>
+        {/* نبرة الصوت */}
+        {entry.voiceTone && (
+          <Section title="نبرة الصوت">
+            <p className="text-sm text-foreground">{entry.voiceTone}</p>
           </Section>
         )}
 
-        {/* Reference */}
-        {entry.reference && (
-          <Section title="Reference">
-            <p className="text-sm text-foreground whitespace-pre-wrap">{entry.reference}</p>
+        {/* الإلهام */}
+        {entry.inspiration && (
+          <Section title="الإلهام">
+            <p className="text-sm text-foreground">{entry.inspiration}</p>
           </Section>
         )}
 
-        {/* Storyboard */}
-        {entry.storyboard && (
-          <Section title="Storyboard">
-            {entry.storyboard.startsWith("http") ? (
-              <LinkRow href={entry.storyboard} label={entry.storyboard} />
-            ) : (
-              <p className="text-sm text-foreground">{entry.storyboard}</p>
-            )}
+        {/* رابط الملف */}
+        {entry.assetLink && (
+          <Section title="رابط الملف الجاهز">
+            <LinkRow href={entry.assetLink} label={entry.assetLink} />
           </Section>
         )}
 
-        {/* Material + Size */}
-        {(entry.material || entry.size) && (
-          <Section title="الإنتاج">
-            <div className="space-y-1">
-              {entry.material && <InfoRow label="Material" value={entry.material} />}
-              {entry.size && <InfoRow label="المقاس" value={entry.size} />}
-            </div>
-          </Section>
-        )}
-
-        {/* Post / Video link */}
-        {entry.postVidLinks && (
-          <Section title="رابط المنشور / الفيديو">
-            {entry.postVidLinks.startsWith("http") ? (
-              <LinkRow href={entry.postVidLinks} label={entry.postVidLinks} />
-            ) : (
-              <p className="text-sm text-foreground">{entry.postVidLinks}</p>
-            )}
-          </Section>
-        )}
-
-        {/* Reel link */}
-        {entry.reelLink && (
-          <Section title="رابط الريل">
-            {entry.reelLink.startsWith("http") ? (
-              <LinkRow href={entry.reelLink} label={entry.reelLink} />
-            ) : (
-              <p className="text-sm text-foreground">{entry.reelLink}</p>
-            )}
-          </Section>
-        )}
-
-        {/* Content link */}
-        {entry.contentLink && (
-          <Section title="رابط المحتوى">
-            {entry.contentLink.startsWith("http") ? (
-              <LinkRow href={entry.contentLink} label={entry.contentLink} />
-            ) : (
-              <p className="text-sm text-foreground">{entry.contentLink}</p>
-            )}
-          </Section>
-        )}
-
-        {/* Publishing date/time */}
-        {(entry.publishingDate || entry.publishingTime) && (
+        {/* موعد النشر */}
+        {(entry.scheduledDate || entry.scheduledTime) && (
           <Section title="موعد النشر">
             <div className="space-y-1">
-              {entry.publishingDate && (
-                <InfoRow
-                  label="التاريخ"
-                  value={new Date(entry.publishingDate).toLocaleDateString("ar-SA", {
-                    weekday: "long", year: "numeric", month: "long", day: "numeric",
-                  })}
-                />
+              {entry.scheduledDate && (
+                <InfoRow label="التاريخ" value={new Date(entry.scheduledDate).toLocaleDateString("ar-SA", {
+                  weekday: "long", year: "numeric", month: "long", day: "numeric",
+                })} />
               )}
-              {entry.publishingTime && <InfoRow label="الوقت" value={entry.publishingTime} />}
+              {entry.scheduledTime && <InfoRow label="الوقت" value={entry.scheduledTime} />}
             </div>
           </Section>
         )}
 
-        {/* Status fields */}
-        {(entry.code || entry.readyToPublish || entry.reviewed) && (
-          <Section title="الحالة">
-            <div className="space-y-1">
-              {entry.code && <InfoRow label="الكود" value={entry.code} />}
-              {entry.readyToPublish && <InfoRow label="جاهز للنشر" value={entry.readyToPublish} />}
-              {entry.reviewed && <InfoRow label="تمت المراجعة" value={entry.reviewed} />}
+        {/* روابط النشر */}
+        {entry.channelLinks && Object.keys(entry.channelLinks).length > 0 && (
+          <Section title="روابط النشر">
+            <div className="space-y-2">
+              {Object.entries(entry.channelLinks).map(([ch, url]) => (
+                <div key={ch} className="flex items-center gap-2">
+                  <span className="text-xs font-medium text-muted-foreground w-20 shrink-0">{ch}</span>
+                  <LinkRow href={url} label={url} />
+                </div>
+              ))}
             </div>
           </Section>
         )}
 
-        {/* Notes */}
+        {/* ملحوظات */}
         {entry.notes && (
           <Section title="ملحوظات">
             <p className="text-sm text-foreground whitespace-pre-wrap leading-relaxed">{entry.notes}</p>
@@ -222,7 +179,7 @@ function Chip({ label, value, color }: { label: string; value: string; color?: s
 function InfoRow({ label, value }: { label: string; value: string }) {
   return (
     <div className="flex gap-2 text-sm">
-      <span className="text-muted-foreground min-w-[100px] shrink-0">{label}:</span>
+      <span className="text-muted-foreground min-w-25 shrink-0">{label}:</span>
       <span className="text-foreground">{value}</span>
     </div>
   );
@@ -230,12 +187,8 @@ function InfoRow({ label, value }: { label: string; value: string }) {
 
 function LinkRow({ href, label }: { href: string; label: string }) {
   return (
-    <a
-      href={href}
-      target="_blank"
-      rel="noopener noreferrer"
-      className="inline-flex items-center gap-1.5 text-sm text-primary underline break-all"
-    >
+    <a href={href} target="_blank" rel="noopener noreferrer"
+      className="inline-flex items-center gap-1.5 text-sm text-primary underline break-all">
       {label.length > 60 ? label.slice(0, 60) + "…" : label}
       <ExternalLink className="h-3.5 w-3.5 shrink-0" />
     </a>
@@ -244,19 +197,11 @@ function LinkRow({ href, label }: { href: string; label: string }) {
 
 // ─── Color helpers ────────────────────────────────────────────────────────────
 
-function publishingColor(s: string) {
-  if (s === "تم النشر")     return "bg-green-100 text-green-800 border-green-200";
-  if (s === "مجدول")        return "bg-blue-100 text-blue-800 border-blue-200";
-  if (s === "قيد المراجعة") return "bg-yellow-100 text-yellow-800 border-yellow-200";
-  if (s === "لم يتم النشر") return "bg-orange-100 text-orange-700 border-orange-200";
-  return "bg-muted text-muted-foreground border-border";
-}
-
-function funnelColor(f: string) {
-  if (f === "awareness")  return "bg-purple-100 text-purple-700 border-purple-200";
-  if (f === "engagement") return "bg-orange-100 text-orange-700 border-orange-200";
-  if (f === "leads")      return "bg-blue-100 text-blue-700 border-blue-200";
-  if (f === "conversion") return "bg-green-100 text-green-700 border-green-200";
+function statusColor(s: string) {
+  if (s === "تم النشر")         return "bg-green-100 text-green-800 border-green-200";
+  if (s === "جاهز للنشر")       return "bg-blue-100 text-blue-800 border-blue-200";
+  if (s === "جاهز للمراجعة")    return "bg-amber-100 text-amber-800 border-amber-200";
+  if (s === "قيد الإنتاج")      return "bg-zinc-100 text-zinc-600 border-zinc-200";
   return "bg-muted text-muted-foreground border-border";
 }
 

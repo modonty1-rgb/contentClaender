@@ -4,6 +4,7 @@ import { ArrowRight } from "lucide-react";
 import { MONTHS } from "@/lib/constants";
 import type { MonthValue } from "@/lib/constants";
 import { getClientBySlug } from "@/app/actions/clients";
+import { getEntriesByMonth } from "@/app/actions/entries";
 import { EntryPageForm } from "../EntryPageForm";
 import type { EntryPageFormData } from "../EntryPageForm";
 
@@ -20,19 +21,26 @@ export default async function NewEntryPage({ params }: Props) {
   if (!client) notFound();
   if (!monthMeta) notFound();
 
+  const entries = await getEntriesByMonth(month, client.id);
+  const entryDays = [...new Set(entries.map((e) => e.day))];
+
+  const MONTH_INDEX: Record<string, number> = {
+    jan: 0, feb: 1, mar: 2, apr: 3, may: 4, jun: 5,
+    jul: 6, aug: 7, sep: 8, oct: 9, nov: 10, dec: 11,
+  };
+  const today = new Date();
+  const defaultDay = today.getMonth() === MONTH_INDEX[month] ? today.getDate() : 1;
+
   const defaultValues: EntryPageFormData = {
-    day: 1, idea: "", funnel: [], typeOfContent: "", orgPaid: "organic",
-    publishing: "لم يتم النشر", channels: [], captionSA: "", captionEG: "",
-    script: "", tov: "", reference: "", postVidLinks: "", reelLink: "",
-    publishingDate: "", publishingTime: "", code: "", notes: "",
-    reviewed: "", readyToPublish: "", contentLink: "", storyboard: "",
-    material: "", size: "",
+    day: defaultDay, idea: "", customerStage: [], contentType: "",
+    channels: [], text: "", hook: "", cta: "",
+    script: "", voiceTone: "", inspiration: "", notes: "",
   };
 
   return (
     <div className="min-h-screen bg-muted/30" dir="rtl">
       <header className="border-b border-border bg-card px-4 py-3 shadow-sm sticky top-0 z-10">
-        <div className="mx-auto max-w-3xl flex items-center gap-3">
+        <div className="mx-auto max-w-6xl flex items-center gap-3">
           <Link
             href={`/clients/${slug}/calendar/${month}`}
             className="flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground hover:bg-muted rounded-md px-2 py-1 transition-colors -mx-2"
@@ -46,7 +54,7 @@ export default async function NewEntryPage({ params }: Props) {
         </div>
       </header>
 
-      <main className="mx-auto max-w-3xl p-4 pt-6">
+      <main className="mx-auto max-w-6xl p-4 pt-6">
         <EntryPageForm
           mode="create"
           slug={slug}
@@ -54,6 +62,7 @@ export default async function NewEntryPage({ params }: Props) {
           month={month as MonthValue}
           monthLabel={monthMeta.label}
           defaultValues={defaultValues}
+          entryDays={entryDays}
         />
       </main>
     </div>

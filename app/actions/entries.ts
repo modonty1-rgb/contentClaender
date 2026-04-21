@@ -7,33 +7,45 @@ import { z } from "zod";
 // ─── Types ────────────────────────────────────────────────────────────────────
 
 export type EntryListItem = {
-  id: string;
-  clientId: string | null;
-  month: string;
-  day: number;
-  idea: string;
-  funnel: string[];
-  typeOfContent: string;
-  orgPaid: string;
-  captionSA: string | null;
-  captionEG: string | null;
-  script: string | null;
-  tov: string | null;
-  reference: string | null;
-  publishing: string;
-  channels: string[];
-  postVidLinks: string | null;
-  reelLink: string | null;
-  publishingDate: Date | null;
-  publishingTime: string | null;
-  code: string | null;
-  notes: string | null;
-  reviewed: string | null;
-  readyToPublish: string | null;
-  contentLink: string | null;
-  storyboard: string | null;
-  material: string | null;
-  size: string | null;
+  id:         string;
+  clientId:   string | null;
+  month:      string;
+  day:        number;
+
+  // Status
+  status:          string;
+  statusUpdatedAt: Date;
+
+  // Timeline
+  productionStartedAt:   Date | null;
+  productionCompletedAt: Date | null;
+  publishedAt:           Date | null;
+
+  // كاتب المحتوى
+  contentType:   string;
+  customerStage: string[];
+  channels:      string[];
+  idea:          string;
+  text:          string | null;
+  hook:          string | null;
+  cta:           string | null;
+  script:        string | null;
+  voiceTone:     string | null;
+  inspiration:   string | null;
+  notes:         string | null;
+
+  // الإنتاج
+  assetLink: string | null;
+
+  // الميديا باير
+  orgPaid:       string | null;
+  budget:        number | null;
+  currency:      string | null;
+  adDuration:    number | null;
+  scheduledDate: Date | null;
+  scheduledTime: string | null;
+  channelLinks:  Record<string, string> | null;
+
   createdAt: Date;
   updatedAt: Date;
 };
@@ -46,35 +58,37 @@ export type CreateEntryResult =
   | { success: true; id: string }
   | { success: false; error: string };
 
-// ─── Validation Schema ────────────────────────────────────────────────────────
+// ─── Validation Schemas ───────────────────────────────────────────────────────
 
 const entrySchema = z.object({
-  clientId:       z.string().optional(),
-  month:          z.string().min(1),
-  day:            z.coerce.number().int().min(1).max(31),
-  idea:           z.string().default(""),
-  funnel:         z.array(z.string()).default([]),
-  typeOfContent:  z.string().default(""),
-  orgPaid:        z.string().default(""),
-  captionSA:      z.string().nullable().optional(),
-  captionEG:      z.string().nullable().optional(),
-  script:         z.string().nullable().optional(),
-  tov:            z.string().nullable().optional(),
-  reference:      z.string().nullable().optional(),
-  publishing:     z.string().default("لم يتم النشر"),
-  channels:       z.array(z.string()).default([]),
-  postVidLinks:   z.string().nullable().optional(),
-  publishingDate: z.coerce.date().nullable().optional(),
-  reelLink:       z.string().nullable().optional(),
-  publishingTime: z.string().nullable().optional(),
-  code:           z.string().nullable().optional(),
-  notes:          z.string().nullable().optional(),
-  reviewed:       z.string().nullable().optional(),
-  readyToPublish: z.string().nullable().optional(),
-  contentLink:    z.string().nullable().optional(),
-  storyboard:     z.string().nullable().optional(),
-  material:       z.string().nullable().optional(),
-  size:           z.string().nullable().optional(),
+  clientId:      z.string().optional(),
+  month:         z.string().min(1),
+  day:           z.coerce.number().int().min(1).max(31),
+
+  // كاتب المحتوى
+  contentType:   z.string().default(""),
+  customerStage: z.array(z.string()).default([]),
+  channels:      z.array(z.string()).default([]),
+  idea:          z.string().default(""),
+  text:          z.string().nullable().optional(),
+  hook:          z.string().nullable().optional(),
+  cta:           z.string().nullable().optional(),
+  script:        z.string().nullable().optional(),
+  voiceTone:     z.string().nullable().optional(),
+  inspiration:   z.string().nullable().optional(),
+  notes:         z.string().nullable().optional(),
+
+  // الإنتاج
+  assetLink: z.string().nullable().optional(),
+
+  // الميديا باير
+  orgPaid:       z.string().nullable().optional(),
+  budget:        z.coerce.number().nullable().optional(),
+  currency:      z.string().nullable().optional(),
+  adDuration:    z.coerce.number().int().nullable().optional(),
+  scheduledDate: z.coerce.date().nullable().optional(),
+  scheduledTime: z.string().nullable().optional(),
+  channelLinks:  z.record(z.string(), z.string()).nullable().optional(),
 });
 
 type EntryInput = z.infer<typeof entrySchema>;
@@ -83,26 +97,26 @@ type EntryInput = z.infer<typeof entrySchema>;
 
 export async function getEntriesByMonth(
   month: string,
-  clientId?: string
+  clientId?: string,
 ): Promise<EntryListItem[]> {
   const rows = await prisma.contentEntry.findMany({
     where: clientId ? { month, clientId } : { month },
     orderBy: [{ day: "asc" }, { createdAt: "asc" }],
   });
-  return rows as EntryListItem[];
+  return rows as unknown as EntryListItem[];
 }
 
 export async function getEntryById(id: string): Promise<EntryListItem | null> {
   try {
     const row = await prisma.contentEntry.findUnique({ where: { id } });
-    return row as EntryListItem | null;
+    return row as unknown as EntryListItem | null;
   } catch {
     return null;
   }
 }
 
 export async function getAllMonthCounts(
-  clientId?: string
+  clientId?: string,
 ): Promise<Record<string, number>> {
   const rows = await prisma.contentEntry.findMany({
     where: clientId ? { clientId } : undefined,
@@ -117,24 +131,44 @@ export async function getAllMonthCounts(
 
 export async function getMonthStats(
   month: string,
-  clientId?: string
+  clientId?: string,
 ): Promise<{
   total: number;
   published: number;
   pending: number;
-  sponsored: number;
-  organic: number;
+  inProduction: number;
+  readyToPublish: number;
 }> {
   const rows = await prisma.contentEntry.findMany({
     where: clientId ? { month, clientId } : { month },
-    select: { publishing: true, orgPaid: true },
+    select: { status: true },
   });
   return {
-    total:     rows.length,
-    published: rows.filter((r) => r.publishing === "تم النشر").length,
-    pending:   rows.filter((r) => r.publishing !== "تم النشر").length,
-    sponsored: rows.filter((r) => r.orgPaid === "sponsored").length,
-    organic:   rows.filter((r) => r.orgPaid === "organic").length,
+    total:          rows.length,
+    published:      rows.filter((r) => r.status === "تم النشر").length,
+    pending:        rows.filter((r) => r.status === "قيد الإنتاج").length,
+    inProduction:   rows.filter((r) => r.status === "جاهز للمراجعة").length,
+    readyToPublish: rows.filter((r) => r.status === "جاهز للنشر").length,
+  };
+}
+
+export async function getAllStats(
+  clientId?: string,
+): Promise<{
+  total: number;
+  published: number;
+  pending: number;
+  readyToPublish: number;
+}> {
+  const rows = await prisma.contentEntry.findMany({
+    where: clientId ? { clientId } : {},
+    select: { status: true },
+  });
+  return {
+    total:          rows.length,
+    published:      rows.filter((r) => r.status === "تم النشر").length,
+    pending:        rows.filter((r) => r.status === "قيد الإنتاج").length,
+    readyToPublish: rows.filter((r) => r.status === "جاهز للنشر").length,
   };
 }
 
@@ -146,7 +180,14 @@ export async function createEntry(data: EntryInput): Promise<CreateEntryResult> 
     return { success: false, error: "بيانات غير صحيحة" };
   }
   try {
-    const row = await prisma.contentEntry.create({ data: validated.data });
+    const row = await prisma.contentEntry.create({
+      data: {
+        ...validated.data,
+        status: "قيد الإنتاج",
+        statusUpdatedAt: new Date(),
+        productionStartedAt: new Date(),
+      },
+    });
     revalidatePath("/", "layout");
     return { success: true, id: row.id };
   } catch {
@@ -158,7 +199,7 @@ export async function createEntry(data: EntryInput): Promise<CreateEntryResult> 
 
 export async function updateEntry(
   id: string,
-  data: Partial<EntryInput>
+  data: Partial<EntryInput>,
 ): Promise<ActionResult> {
   if (!id) return { success: false, error: "معرّف غير صالح" };
   try {
@@ -167,6 +208,37 @@ export async function updateEntry(
     return { success: true };
   } catch {
     return { success: false, error: "حدث خطأ عند التعديل" };
+  }
+}
+
+// ─── UPDATE STATUS ────────────────────────────────────────────────────────────
+
+export type StatusValue =
+  | "قيد الإنتاج"
+  | "جاهز للمراجعة"
+  | "جاهز للنشر"
+  | "تم النشر";
+
+export async function updateStatus(
+  id: string,
+  status: StatusValue,
+): Promise<ActionResult> {
+  if (!id) return { success: false, error: "معرّف غير صالح" };
+  try {
+    const now = new Date();
+    const extra: Record<string, Date> = { statusUpdatedAt: now };
+
+    if (status === "جاهز للمراجعة") extra.productionCompletedAt = now;
+    if (status === "تم النشر")       extra.publishedAt = now;
+
+    await prisma.contentEntry.update({
+      where: { id },
+      data: { status, ...extra },
+    });
+    revalidatePath("/", "layout");
+    return { success: true };
+  } catch {
+    return { success: false, error: "حدث خطأ عند تحديث الحالة" };
   }
 }
 

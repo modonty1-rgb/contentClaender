@@ -15,16 +15,21 @@ export const MONTHS = [
 
 export type MonthValue = (typeof MONTHS)[number]["value"];
 
-export const FUNNEL_OPTIONS = ["awareness", "engagement", "leads", "conversion"] as const;
-export const TYPE_OPTIONS   = ["vid", "carousel", "post", "story", "reel"] as const;
+export const CUSTOMER_STAGE_OPTIONS = ["awareness", "engagement", "leads", "conversion"] as const;
+export const TYPE_OPTIONS           = ["vid", "carousel", "post", "story", "reel"] as const;
+export const TYPE_LABELS: Record<string, string> = {
+  vid: "video", carousel: "carousel", post: "post", story: "story", reel: "reel",
+};
 export const ORG_PAID_OPTIONS = ["organic", "sponsored"] as const;
-export const CHANNEL_OPTIONS  = ["instagram", "tiktok", "x", "facebook", "youtube", "linkedin"] as const;
-export const PUBLISHING_OPTIONS = [
-  "لم يتم النشر",
+export const CURRENCY_OPTIONS = ["SAR", "USD", "EGP"] as const;
+export const CHANNEL_OPTIONS  = ["instagram", "tiktok", "x", "facebook", "youtube", "linkedin", "snapchat", "threads"] as const;
+export const STATUS_OPTIONS = [
+  "قيد الإنتاج",
+  "جاهز للمراجعة",
+  "جاهز للنشر",
   "تم النشر",
-  "قيد المراجعة",
-  "مجدول",
 ] as const;
+export type StatusValue = (typeof STATUS_OPTIONS)[number];
 
 export const DAYS_IN_MONTH: Record<MonthValue, number> = {
   jan: 31, feb: 28, mar: 31, apr: 30,

@@ -38,25 +38,18 @@ export function NewClientDialog() {
   const [open, setOpen] = useState(false);
   const [pending, startTransition] = useTransition();
   const [name, setName] = useState("");
-  const [slug, setSlug] = useState("");
-  const [slugTouched, setSlugTouched] = useState(false);
   const [color, setColor] = useState(COLORS[0].value);
   const [error, setError] = useState<string | null>(null);
-
-  const handleNameChange = (v: string) => {
-    setName(v);
-    if (!slugTouched) setSlug(slugify(v));
-  };
 
   const handleSubmit = (e: FormEvent) => {
     e.preventDefault();
     setError(null);
     startTransition(async () => {
-      const result = await createClient({ name: name.trim(), slug: slug.trim(), color });
+      const result = await createClient({ name: name.trim(), slug: slugify(name.trim()), color });
       if (result.success) {
         toast.success(`تم إضافة ${name.trim()}`);
         setOpen(false);
-        setName(""); setSlug(""); setSlugTouched(false); setColor(COLORS[0].value);
+        setName(""); setColor(COLORS[0].value);
         router.refresh();
       } else {
         setError(result.error);
@@ -86,14 +79,13 @@ export function NewClientDialog() {
         </DialogHeader>
 
         <form onSubmit={handleSubmit} className="space-y-5 mt-2">
-          {/* Name */}
           <div className="space-y-1.5">
             <Label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">
               اسم العميل
             </Label>
             <Input
               value={name}
-              onChange={(e) => handleNameChange(e.target.value)}
+              onChange={(e) => setName(e.target.value)}
               placeholder="مثال: JBR SEO"
               className="h-10"
               autoFocus
@@ -101,26 +93,6 @@ export function NewClientDialog() {
             />
           </div>
 
-          {/* Slug */}
-          <div className="space-y-1.5">
-            <Label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">
-              المسار في الرابط
-            </Label>
-            <div className="flex items-center gap-1.5">
-              <span className="text-xs text-muted-foreground whitespace-nowrap">/clients/</span>
-              <Input
-                value={slug}
-                onChange={(e) => { setSlug(e.target.value); setSlugTouched(true); }}
-                placeholder="jbrseo"
-                className="h-10 font-mono text-sm"
-                dir="ltr"
-                required
-              />
-            </div>
-            <p className="text-[11px] text-muted-foreground">أحرف إنجليزية صغيرة وأرقام وشرطة فقط</p>
-          </div>
-
-          {/* Color */}
           <div className="space-y-2">
             <Label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">
               اللون المميز

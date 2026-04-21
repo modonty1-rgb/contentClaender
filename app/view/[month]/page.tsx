@@ -44,7 +44,7 @@ export default async function ViewMonthPage({ params }: Props) {
             <StatBadge label="إجمالي"  value={stats.total}     />
             <StatBadge label="منشور"   value={stats.published} color="text-green-600" />
             <StatBadge label="معلق"    value={stats.pending}   color="text-yellow-600" />
-            <StatBadge label="سبونسر"  value={stats.sponsored} color="text-blue-600" />
+            <StatBadge label="جاهز"     value={stats.readyToPublish} color="text-blue-600" />
           </div>
         </div>
       </header>

@@ -64,6 +64,22 @@ export async function createClient(data: {
   }
 }
 
+// ─── UPDATE ───────────────────────────────────────────────────────────────────
+
+export async function updateClient(
+  id: string,
+  data: { name: string; color: string }
+): Promise<{ success: true } | { success: false; error: string }> {
+  if (!data.name.trim()) return { success: false, error: "الاسم مطلوب" };
+  try {
+    await prisma.client.update({ where: { id }, data });
+    revalidatePath("/");
+    return { success: true };
+  } catch {
+    return { success: false, error: "حدث خطأ عند التعديل" };
+  }
+}
+
 // ─── DELETE ───────────────────────────────────────────────────────────────────
 
 export async function deleteClient(
