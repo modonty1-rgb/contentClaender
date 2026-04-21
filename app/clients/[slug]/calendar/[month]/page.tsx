@@ -68,13 +68,15 @@ export default async function ClientCalendarPage({ params }: Props) {
           {/* Stats + CTA */}
           <div className="flex items-center gap-3 shrink-0">
             {/* Month stats */}
-            <div className="flex items-center gap-2.5 rounded-lg border border-border bg-muted/30 px-3 py-1.5 text-[11px]">
+            <div className="flex items-center gap-2 rounded-lg border border-border bg-muted/30 px-3 py-1.5 text-[11px]">
               <span className="font-semibold text-foreground">{monthMeta.labelEn}</span>
               <span className="h-3 w-px bg-border" />
               <StatChip value={stats.total} label="total" />
-              <StatChip value={stats.published} label="published" color="text-green-600" />
-              <StatChip value={stats.pending} label="pending" color="text-orange-500" />
-              {stats.readyToPublish > 0 && <StatChip value={stats.readyToPublish} label="جاهز" color="text-blue-500" />}
+              <span className="h-3 w-px bg-border" />
+              {stats.pending > 0        && <StatusBadge count={stats.pending}        label="قيد الإنتاج"    cls="bg-zinc-100  text-zinc-600   border-zinc-200"  />}
+              {stats.inProduction > 0   && <StatusBadge count={stats.inProduction}   label="للمراجعة"       cls="bg-amber-50  text-amber-700  border-amber-200" />}
+              {stats.readyToPublish > 0 && <StatusBadge count={stats.readyToPublish} label="جاهز للنشر"     cls="bg-blue-50   text-blue-700   border-blue-200"  />}
+              {stats.published > 0      && <StatusBadge count={stats.published}      label="تم النشر"       cls="bg-green-50  text-green-700  border-green-200" />}
             </div>
 
             <div className="h-6 w-px bg-border shrink-0" />
@@ -137,6 +139,15 @@ function StatChip({
     <span className="text-muted-foreground/80">
       <span className={`font-bold tabular-nums ${color}`}>{value}</span>{" "}
       {label}
+    </span>
+  );
+}
+
+function StatusBadge({ count, label, cls }: { count: number; label: string; cls: string }) {
+  return (
+    <span className={`inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-[10px] font-semibold tabular-nums ${cls}`}>
+      <span>{count}</span>
+      <span className="font-normal opacity-80">{label}</span>
     </span>
   );
 }
