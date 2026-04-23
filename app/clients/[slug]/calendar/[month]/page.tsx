@@ -11,7 +11,9 @@ import { getClientBySlug } from "@/app/actions/clients";
 import { MONTHS } from "@/lib/constants";
 import type { MonthValue } from "@/lib/constants";
 import Link from "next/link";
-import { ArrowLeft, Plus, Sparkles } from "lucide-react";
+import { ArrowLeft } from "lucide-react";
+import { ModeToggle } from "@/app/components/mode-toggle";
+import { NavIconLinks } from "./NavIconLinks";
 
 type Props = { params: Promise<{ slug: string; month: string }> };
 
@@ -90,23 +92,9 @@ export default async function ClientCalendarPage({ params }: Props) {
               <StatChip value={totalStats.pending} label="pending" color="text-orange-500" />
             </div>
 
-            {/* Flow guide */}
-            <Link
-              href="/flow"
-              className="inline-flex items-center gap-1.5 rounded-lg border border-border bg-card px-3 py-1.5 text-sm font-medium text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
-            >
-              <Sparkles className="h-3.5 w-3.5" />
-              الفلو
-            </Link>
+            <NavIconLinks slug={slug} />
 
-            {/* New task CTA */}
-            <Link
-              href={`/clients/${slug}/calendar/${month}/new`}
-              className="inline-flex items-center gap-1.5 rounded-lg bg-primary px-3.5 py-1.5 text-sm font-semibold text-primary-foreground hover:bg-primary/90 transition-colors shadow-sm"
-            >
-              <Plus className="h-3.5 w-3.5" />
-              منشور جديد
-            </Link>
+<ModeToggle />
           </div>
         </div>
       </header>

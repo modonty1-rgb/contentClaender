@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { Calendar, ExternalLink } from "lucide-react";
+import { Calendar, Sparkles } from "lucide-react";
 import { getClients } from "@/app/actions/clients";
 import { NewClientDialog } from "@/app/components/NewClientDialog";
 import { DeleteClientButton } from "@/app/components/DeleteClientButton";
@@ -16,7 +16,7 @@ export default async function DashboardPage() {
       <header className="border-b border-border bg-card px-6 py-5 shadow-sm">
         <div className="mx-auto max-w-5xl flex items-center justify-between">
           <div>
-            <h1 className="text-2xl font-bold text-foreground tracking-tight">Content Manager</h1>
+            <h1 className="text-2xl font-bold text-foreground tracking-tight">مدير المحتوى</h1>
             <p className="text-sm text-muted-foreground mt-0.5">أدِر محتوى عملاءك في مكان واحد</p>
           </div>
           <div className="flex items-center gap-3 text-sm text-muted-foreground">
@@ -27,6 +27,13 @@ export default async function DashboardPage() {
               <Calendar className="h-4 w-4" />
               <span>{clients.length} عميل</span>
             </div>
+            <Link
+              href="/flow"
+              className="inline-flex items-center gap-1.5 rounded-lg border border-border bg-card px-3 py-1.5 text-xs font-medium hover:text-foreground hover:bg-muted transition-colors"
+            >
+              <Sparkles className="h-3.5 w-3.5" />
+              سير العمل
+            </Link>
           </div>
         </div>
       </header>
@@ -43,7 +50,10 @@ export default async function DashboardPage() {
 
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
           {clients.map((client) => {
-            const firstMonth = client.activeMonths[0] ?? "jan";
+            const currentMonthValue = MONTHS[new Date().getMonth()].value;
+          const firstMonth = client.activeMonths.includes(currentMonthValue)
+            ? currentMonthValue
+            : (client.activeMonths[client.activeMonths.length - 1] ?? "jan");
             const monthLabels = client.activeMonths
               .map((mv) => MONTHS.find((m) => m.value === mv)?.label)
               .filter(Boolean)
@@ -52,7 +62,7 @@ export default async function DashboardPage() {
             return (
               <div
                 key={client.id}
-                className="group relative rounded-2xl border border-border bg-card shadow-sm hover:shadow-md transition-all overflow-hidden"
+                className="group relative rounded-2xl border border-border bg-card shadow-sm hover:shadow-lg hover:-translate-y-1 transition-all duration-200 overflow-hidden"
               >
                 {/* Color bar */}
                 <div className="h-1.5 w-full" style={{ backgroundColor: client.color }} />

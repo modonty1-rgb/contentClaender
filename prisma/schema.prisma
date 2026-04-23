@@ -47,7 +47,9 @@ model ContentEntry {
   notes         String?
 
   // ── الإنتاج ─────────────────────────────────────────────────────────────────
-  assetLink String?
+  assetLink     String?   // deprecated — kept for backward compat, migrated to assets[]
+  assets        Json?     // [{ id, url, type: "image"|"video", label? }]
+  rejectionNote String?   // سبب الرفض — يُحفظ عند الرفض من صفحة المراجعة
 
   // ── الميديا باير ────────────────────────────────────────────────────────────
   orgPaid       String?
@@ -57,6 +59,8 @@ model ContentEntry {
   scheduledDate DateTime?
   scheduledTime String?
   channelLinks  Json?
+
+  archived  Boolean? @default(false)
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt

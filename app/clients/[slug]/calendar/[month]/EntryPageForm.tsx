@@ -279,23 +279,18 @@ function ContentTypeSidebar({ value, onChange }: { value: string; onChange: (v: 
             <button key={opt} type="button" title={meta.label}
               onClick={() => onChange(active ? "" : opt)}
               className={cn(
-                "flex-1 h-8 flex items-center justify-center rounded-lg transition-all",
+                "flex-1 py-1.5 flex flex-col items-center justify-center gap-0.5 rounded-lg transition-all",
                 active
                   ? "bg-card text-foreground shadow-sm"
-                  : "text-muted-foreground/40 hover:text-foreground",
+                  : "text-muted-foreground/40 hover:text-foreground hover:text-muted-foreground",
               )}
             >
-              <Icon size={14} />
+              <Icon size={13} />
+              <span className="text-[9px] font-medium leading-none">{meta.label}</span>
             </button>
           );
         })}
       </div>
-      {activeMeta && (
-        <div className="flex items-center justify-center gap-1 pt-0.5">
-          {ActiveIcon && <ActiveIcon size={9} className="text-primary" />}
-          <span className="text-[10px] text-primary font-semibold">{activeMeta.label}</span>
-        </div>
-      )}
     </SidebarCard>
   );
 }
@@ -318,22 +313,18 @@ function CustomerStageSidebar({ value, onChange }: { value: string[]; onChange: 
               title={meta.label}
               onClick={() => onChange(active ? value.filter((v) => v !== opt) : [...value, opt])}
               className={cn(
-                "flex-1 h-8 flex items-center justify-center rounded-lg transition-all",
+                "flex-1 py-1.5 flex flex-col items-center justify-center gap-0.5 rounded-lg transition-all",
                 active
                   ? "bg-card text-primary shadow-sm"
-                  : "text-muted-foreground/40 hover:text-foreground",
+                  : "text-muted-foreground/40 hover:text-foreground hover:text-muted-foreground",
               )}
             >
-              <Icon size={13} />
+              <Icon size={12} />
+              <span className="text-[9px] font-medium leading-none">{meta.label}</span>
             </button>
           );
         })}
       </div>
-      {activeLabels.length > 0 && (
-        <p className="text-center text-[10px] text-primary font-semibold pt-0.5 leading-none">
-          {activeLabels.join(" · ")}
-        </p>
-      )}
     </SidebarCard>
   );
 }
@@ -474,7 +465,10 @@ export function EntryPageForm({ mode, entryId, slug, clientId, month, defaultVal
 
           <Section title="المحتوى">
             <div className="space-y-1.5">
-              <Label className={labelClass}>الفكرة</Label>
+              <div className="flex items-center gap-1">
+                <Label className={labelClass}>الفكرة</Label>
+                <span className="text-red-500 text-xs leading-none" title="مطلوب">*</span>
+              </div>
               <Input value={data.idea} onChange={(e) => set("idea", e.target.value)}
                 placeholder="ما هي فكرة المحتوى؟"
                 className={cn("h-10 text-sm font-medium transition-all", data.idea ? "border-primary/30 bg-primary/3" : "")} />
@@ -482,22 +476,38 @@ export function EntryPageForm({ mode, entryId, slug, clientId, month, defaultVal
             <div className="space-y-1.5">
               <div className="flex items-center justify-between">
                 <Label className={labelClass}>النص</Label>
-                {textTouched && (
-                  <span className={cn("text-[11px] tabular-nums transition-colors",
-                    data.text.length > 800 ? "text-red-500 font-semibold" : data.text.length > 400 ? "text-amber-500" : "text-muted-foreground/50",
-                  )}>
-                    {data.text.length} حرف
-                  </span>
-                )}
+                <span className={cn("text-[11px] tabular-nums transition-colors",
+                  data.text.length > 800 ? "text-red-500 font-semibold" : data.text.length > 400 ? "text-amber-500" : "text-muted-foreground/40",
+                )}>
+                  {data.text.length} حرف
+                </span>
               </div>
               <AutoTextarea value={data.text} onChange={(e) => { set("text", e.target.value); setTextTouched(true); }} placeholder="النص الكامل..." className="min-h-28" />
             </div>
             <div className="space-y-1.5">
-              <Label className={labelClass}>الخطاف <span className="text-muted-foreground/50 font-normal">Hook</span></Label>
+              <div className="flex items-center justify-between">
+                <Label className={labelClass}>الخطاف <span className="text-muted-foreground/50 font-normal">Hook</span></Label>
+                {data.hook.length > 0 && (
+                  <span className={cn("text-[11px] tabular-nums transition-colors",
+                    data.hook.length > 200 ? "text-red-500 font-semibold" : data.hook.length > 100 ? "text-amber-500" : "text-muted-foreground/40",
+                  )}>
+                    {data.hook.length} حرف
+                  </span>
+                )}
+              </div>
               <AutoTextarea value={data.hook} onChange={(e) => set("hook", e.target.value)} placeholder="الخطاف..." className="min-h-16" />
             </div>
             <div className="space-y-1.5">
-              <Label className={labelClass}>الدعوة <span className="text-muted-foreground/50 font-normal">CTA</span></Label>
+              <div className="flex items-center justify-between">
+                <Label className={labelClass}>الدعوة <span className="text-muted-foreground/50 font-normal">CTA</span></Label>
+                {data.cta.length > 0 && (
+                  <span className={cn("text-[11px] tabular-nums transition-colors",
+                    data.cta.length > 150 ? "text-red-500 font-semibold" : data.cta.length > 80 ? "text-amber-500" : "text-muted-foreground/40",
+                  )}>
+                    {data.cta.length} حرف
+                  </span>
+                )}
+              </div>
               <AutoTextarea value={data.cta} onChange={(e) => set("cta", e.target.value)} placeholder="الدعوة للتصرف..." className="min-h-16" />
             </div>
           </Section>

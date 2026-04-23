@@ -12,7 +12,7 @@ import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger,
 } from "@/app/components/ui/dialog";
 import { cn } from "@/lib/utils";
-import { STATUS_OPTIONS, TYPE_OPTIONS } from "@/lib/constants";
+import { STATUS_OPTIONS, TYPE_OPTIONS, TYPE_LABELS, CUSTOMER_STAGE_LABELS } from "@/lib/constants";
 import type { EntryListItem } from "@/app/actions/entries";
 
 // ─── Color helpers ────────────────────────────────────────────────────────────
@@ -34,11 +34,11 @@ function customerStageColor(f: string) {
 }
 
 function typeColor(t: string) {
-  if (t === "vid")      return "bg-red-100 text-red-700";
-  if (t === "carousel") return "bg-indigo-100 text-indigo-700";
-  if (t === "post")     return "bg-gray-100 text-gray-700";
-  if (t === "story")    return "bg-pink-100 text-pink-700";
-  if (t === "reel")     return "bg-rose-100 text-rose-700";
+  if (t === "vid")      return "bg-red-100 dark:bg-red-950 text-red-700 dark:text-red-300";
+  if (t === "carousel") return "bg-indigo-100 dark:bg-indigo-950 text-indigo-700 dark:text-indigo-300";
+  if (t === "post")     return "bg-zinc-100 dark:bg-zinc-800 text-zinc-700 dark:text-zinc-300";
+  if (t === "story")    return "bg-pink-100 dark:bg-pink-950 text-pink-700 dark:text-pink-300";
+  if (t === "reel")     return "bg-rose-100 dark:bg-rose-950 text-rose-700 dark:text-rose-300";
   return "bg-muted text-muted-foreground";
 }
 
@@ -238,7 +238,7 @@ export function ViewTable({ entries }: Props): ReactElement {
                         <div className="flex flex-wrap gap-1">
                           {entry.customerStage.map((f) => (
                             <span key={f} className={cn("rounded-full px-2 py-0.5 text-[10px] font-medium", customerStageColor(f))}>
-                              {f}
+                              {CUSTOMER_STAGE_LABELS[f] ?? f}
                             </span>
                           ))}
                         </div>
@@ -247,7 +247,7 @@ export function ViewTable({ entries }: Props): ReactElement {
                       <TableCell className="p-2">
                         {entry.contentType ? (
                           <span className={cn("rounded-full px-2 py-0.5 text-[10px] font-medium", typeColor(entry.contentType))}>
-                            {entry.contentType}
+                            {TYPE_LABELS[entry.contentType] ?? entry.contentType}
                           </span>
                         ) : "—"}
                       </TableCell>

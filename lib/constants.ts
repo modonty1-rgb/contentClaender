@@ -16,9 +16,15 @@ export const MONTHS = [
 export type MonthValue = (typeof MONTHS)[number]["value"];
 
 export const CUSTOMER_STAGE_OPTIONS = ["awareness", "engagement", "leads", "conversion"] as const;
+export const CUSTOMER_STAGE_LABELS: Record<string, string> = {
+  awareness:  "توعية",
+  engagement: "تفاعل",
+  leads:      "عملاء محتملون",
+  conversion: "تحويل",
+};
 export const TYPE_OPTIONS           = ["vid", "carousel", "post", "story", "reel"] as const;
 export const TYPE_LABELS: Record<string, string> = {
-  vid: "video", carousel: "carousel", post: "post", story: "story", reel: "reel",
+  vid: "فيديو", carousel: "كاروسيل", post: "بوست", story: "ستوري", reel: "ريل",
 };
 export const ORG_PAID_OPTIONS = ["organic", "sponsored"] as const;
 export const CURRENCY_OPTIONS = ["SAR", "USD", "EGP"] as const;

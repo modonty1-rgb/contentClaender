@@ -1,7 +1,8 @@
 import { notFound } from "next/navigation";
-import { ExternalLink } from "lucide-react";
+import Link from "next/link";
+import { ExternalLink, ArrowRight } from "lucide-react";
 import { getEntryById } from "@/app/actions/entries";
-import { MONTHS } from "@/lib/constants";
+import { MONTHS, TYPE_LABELS, CUSTOMER_STAGE_LABELS } from "@/lib/constants";
 import { cn } from "@/lib/utils";
 
 type Props = { params: Promise<{ id: string }> };
@@ -16,14 +17,19 @@ export default async function ViewEntryPage({ params }: Props) {
   return (
     <div className="min-h-screen bg-muted/30" dir="rtl">
       <header className="border-b border-border bg-card px-4 py-3 shadow-sm">
-        <div className="mx-auto max-w-2xl flex items-center justify-between">
-          <div>
-            <p className="text-xs text-muted-foreground">JBR Content Calendar</p>
-            <h1 className="text-base font-bold text-foreground leading-tight">
-              {monthMeta?.label} — يوم {entry.day}
-            </h1>
-          </div>
-          <span className="rounded-full border border-border bg-muted px-3 py-1 text-[11px] font-medium text-muted-foreground">
+        <div className="mx-auto max-w-2xl flex items-center gap-3">
+          <Link
+            href="/"
+            className="flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground hover:bg-muted rounded-md px-2 py-1 transition-colors -mx-2 shrink-0"
+          >
+            <ArrowRight className="h-4 w-4" />
+            الرئيسية
+          </Link>
+          <span className="text-muted-foreground">/</span>
+          <h1 className="text-sm font-semibold text-foreground truncate min-w-0">
+            {monthMeta?.label} — يوم {entry.day} — {entry.idea || "بدون فكرة"}
+          </h1>
+          <span className="mr-auto shrink-0 rounded-full border border-border bg-muted px-3 py-1 text-[11px] font-medium text-muted-foreground">
             عرض فقط 👁
           </span>
         </div>
@@ -42,10 +48,10 @@ export default async function ViewEntryPage({ params }: Props) {
         {/* Meta chips */}
         <div className="flex flex-wrap gap-2">
           {entry.contentType && (
-            <Chip label="النوع" value={entry.contentType} color={typeColor(entry.contentType)} />
+            <Chip label="النوع" value={TYPE_LABELS[entry.contentType] ?? entry.contentType} color={typeColor(entry.contentType)} />
           )}
           {entry.customerStage.map((s) => (
-            <Chip key={s} label="مرحلة العميل" value={s} color="bg-violet-50 text-violet-700 border-violet-200" />
+            <Chip key={s} label="مرحلة العميل" value={CUSTOMER_STAGE_LABELS[s] ?? s} color="bg-violet-50 text-violet-700 border-violet-200" />
           ))}
           <Chip label="الحالة" value={entry.status} color={statusColor(entry.status)} />
         </div>
@@ -198,18 +204,18 @@ function LinkRow({ href, label }: { href: string; label: string }) {
 // ─── Color helpers ────────────────────────────────────────────────────────────
 
 function statusColor(s: string) {
-  if (s === "تم النشر")         return "bg-green-100 text-green-800 border-green-200";
-  if (s === "جاهز للنشر")       return "bg-blue-100 text-blue-800 border-blue-200";
-  if (s === "جاهز للمراجعة")    return "bg-amber-100 text-amber-800 border-amber-200";
-  if (s === "قيد الإنتاج")      return "bg-zinc-100 text-zinc-600 border-zinc-200";
+  if (s === "تم النشر")         return "bg-green-100 dark:bg-green-950 text-green-800 dark:text-green-300 border-green-200 dark:border-green-800";
+  if (s === "جاهز للنشر")       return "bg-blue-100 dark:bg-blue-950 text-blue-800 dark:text-blue-300 border-blue-200 dark:border-blue-800";
+  if (s === "جاهز للمراجعة")    return "bg-amber-100 dark:bg-amber-950 text-amber-800 dark:text-amber-300 border-amber-200 dark:border-amber-800";
+  if (s === "قيد الإنتاج")      return "bg-zinc-100 dark:bg-zinc-800 text-zinc-600 dark:text-zinc-300 border-zinc-200 dark:border-zinc-700";
   return "bg-muted text-muted-foreground border-border";
 }
 
 function typeColor(t: string) {
-  if (t === "vid")      return "bg-red-100 text-red-700 border-red-200";
-  if (t === "carousel") return "bg-indigo-100 text-indigo-700 border-indigo-200";
-  if (t === "post")     return "bg-gray-100 text-gray-700 border-gray-200";
-  if (t === "story")    return "bg-pink-100 text-pink-700 border-pink-200";
-  if (t === "reel")     return "bg-rose-100 text-rose-700 border-rose-200";
+  if (t === "vid")      return "bg-red-100 dark:bg-red-950 text-red-700 dark:text-red-300 border-red-200 dark:border-red-800";
+  if (t === "carousel") return "bg-indigo-100 dark:bg-indigo-950 text-indigo-700 dark:text-indigo-300 border-indigo-200 dark:border-indigo-800";
+  if (t === "post")     return "bg-zinc-100 dark:bg-zinc-800 text-zinc-700 dark:text-zinc-300 border-zinc-200 dark:border-zinc-700";
+  if (t === "story")    return "bg-pink-100 dark:bg-pink-950 text-pink-700 dark:text-pink-300 border-pink-200 dark:border-pink-800";
+  if (t === "reel")     return "bg-rose-100 dark:bg-rose-950 text-rose-700 dark:text-rose-300 border-rose-200 dark:border-rose-800";
   return "bg-muted text-muted-foreground border-border";
 }

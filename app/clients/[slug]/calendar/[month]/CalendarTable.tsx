@@ -3,9 +3,10 @@
 import type { ReactElement } from "react";
 import { Fragment, useState, useMemo, useCallback } from "react";
 import Link from "next/link";
-import { ExternalLink, Share2, Eye, Pencil, Trash2, MoreHorizontal, ArrowUpDown, ArrowUp, ArrowDown, Columns, Search, X, Clapperboard, Send, CheckCircle2, PlayCircle, Lock } from "lucide-react";
+import { ExternalLink, Share2, Eye, Pencil, Archive, ArrowUpDown, ArrowUp, ArrowDown, Columns, Search, X, Clapperboard, Send, CheckCircle2, Lock, XCircle, Film, ImageIcon } from "lucide-react";
 import { Button } from "@/app/components/ui/button";
 import { Input } from "@/app/components/ui/input";
+import { Textarea } from "@/app/components/ui/textarea";
 import {
   Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
 } from "@/app/components/ui/table";
@@ -18,77 +19,119 @@ import {
 } from "@/app/components/ui/dialog";
 
 import {
-  DropdownMenu, DropdownMenuCheckboxItem, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger,
+  DropdownMenu, DropdownMenuCheckboxItem, DropdownMenuContent, DropdownMenuTrigger,
 } from "@/app/components/ui/dropdown-menu";
 import { cn } from "@/lib/utils";
 import { toast } from "@/app/components/ui/sonner";
-import { STATUS_OPTIONS, TYPE_OPTIONS, TYPE_LABELS, DAYS_IN_MONTH } from "@/lib/constants";
-import type { EntryListItem } from "@/app/actions/entries";
+import { STATUS_OPTIONS, TYPE_OPTIONS, TYPE_LABELS, CUSTOMER_STAGE_LABELS, DAYS_IN_MONTH } from "@/lib/constants";
+import type { EntryListItem, AssetItem } from "@/app/actions/entries";
+import { updateStatus, rejectEntry, archiveEntry } from "@/app/actions/entries";
+import { sendTelegramNotification } from "@/app/actions/telegram";
 import { ChannelIcon } from "@/app/components/ui/channel-icon";
 import type { MonthValue } from "@/lib/constants";
 
-// ─── Drive preview helper ─────────────────────────────────────────────────────
-
-function getDriveEmbedUrl(url: string): string | null {
-  const m = url.match(/\/file\/d\/([a-zA-Z0-9_-]+)/);
-  return m ? `https://drive.google.com/file/d/${m[1]}/preview` : null;
+function isCloudinaryUrl(url: string): boolean {
+  return url.includes("res.cloudinary.com");
 }
 
 // ─── Creative Cell ────────────────────────────────────────────────────────────
 
+function getEntryAssets(entry: EntryListItem): AssetItem[] {
+  if (entry.assets && (entry.assets as AssetItem[]).length > 0) return entry.assets as AssetItem[];
+  if (entry.assetLink) return [{ id: "legacy", url: entry.assetLink, type: "video" }];
+  return [];
+}
+
 function CreativeCell({ entry }: { entry: EntryListItem }): ReactElement {
   const [open, setOpen] = useState(false);
-  const embedUrl = entry.assetLink ? getDriveEmbedUrl(entry.assetLink) : null;
+  const [activeIdx, setActiveIdx] = useState(0);
+  const entryAssets = getEntryAssets(entry);
 
-  if (!embedUrl || entry.status === "قيد الإنتاج") {
+  if (entryAssets.length === 0 || entry.status === "قيد الإنتاج") {
     return (
       <div className="flex items-center justify-center">
         <span
           className="text-muted-foreground/25"
-          title={entry.status === "قيد الإنتاج" ? "الكريتيف قيد الإنتاج" : "لا يوجد كريتيف"}>
+          title={entry.status === "قيد الإنتاج" ? "الإبداع قيد الإنتاج" : "لا يوجد إبداع"}>
           <Lock className="h-3.5 w-3.5" />
         </span>
       </div>
     );
   }
 
+  const active = entryAssets[activeIdx] ?? entryAssets[0];
+
   return (
     <>
       <div className="flex items-center justify-center">
         <button
           type="button"
-          onClick={(e) => { e.stopPropagation(); setOpen(true); }}
-          className="text-primary/60 hover:text-primary transition-colors"
-          title="معاينة الكريتيف">
-          <PlayCircle className="h-4 w-4" />
+          onClick={(e) => { e.stopPropagation(); setActiveIdx(0); setOpen(true); }}
+          className="inline-flex items-center gap-1 text-primary/60 hover:text-primary transition-colors"
+          title="معاينة الإبداع">
+          {active.type === "video"
+            ? <Film className="h-4 w-4" />
+            : <ImageIcon className="h-4 w-4" />}
+          {entryAssets.length > 1 && (
+            <span className="text-[10px] font-bold tabular-nums">{entryAssets.length}</span>
+          )}
         </button>
       </div>
 
       <Dialog open={open} onOpenChange={setOpen}>
         <DialogContent className="sm:max-w-3xl p-0 overflow-hidden gap-0">
           <div className="px-4 py-3 border-b border-border flex items-center justify-between gap-3">
-            <DialogTitle className="text-sm font-semibold" dir="rtl">
-              {entry.idea || `يوم ${entry.day}`}
-            </DialogTitle>
+            <div className="flex items-center gap-2 min-w-0">
+              <DialogTitle className="text-sm font-semibold truncate" dir="rtl">
+                {entry.idea || `يوم ${entry.day}`}
+              </DialogTitle>
+              {entryAssets.length > 1 && (
+                <span className="text-[10px] font-semibold bg-muted text-muted-foreground px-1.5 py-0.5 rounded shrink-0">
+                  {activeIdx + 1} / {entryAssets.length}
+                </span>
+              )}
+            </div>
             <button
               type="button"
               onClick={() => setOpen(false)}
-              className="shrink-0 rounded-sm p-1 text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
-              title="إغلاق">
+              className="shrink-0 rounded-sm p-1 text-muted-foreground hover:text-foreground hover:bg-muted transition-colors">
               <X className="h-4 w-4" />
             </button>
           </div>
-          <iframe
-            src={embedUrl}
-            className="w-full"
-            style={{ height: "70vh", border: "none" }}
-            allow="autoplay"
-          />
+
+          {/* Asset tabs (if multiple) */}
+          {entryAssets.length > 1 && (
+            <div className="flex gap-1 px-4 py-2 border-b border-border bg-muted/20 overflow-x-auto">
+              {entryAssets.map((a, i) => (
+                <button
+                  key={a.id}
+                  type="button"
+                  onClick={() => setActiveIdx(i)}
+                  className={cn(
+                    "shrink-0 px-3 py-1 rounded-lg text-xs font-medium transition-colors",
+                    i === activeIdx
+                      ? "bg-primary text-primary-foreground"
+                      : "text-muted-foreground hover:bg-muted hover:text-foreground",
+                  )}>
+                  {a.label || `ملف ${i + 1}`}
+                </button>
+              ))}
+            </div>
+          )}
+
+          {active.type === "image" ? (
+            <div className="flex items-center justify-center bg-black/5 p-2" style={{ minHeight: "40vh", maxHeight: "65vh", overflow: "auto" }}>
+              <img src={active.url} alt={active.label || "ملف"} className="max-w-full max-h-[60vh] object-contain rounded-lg" />
+            </div>
+          ) : (
+            <video src={active.url} controls autoPlay className="w-full" style={{ maxHeight: "65vh" }} />
+          )}
+
           <div className="px-4 py-2 border-t border-border flex justify-end">
-            <a href={entry.assetLink!} target="_blank" rel="noopener noreferrer"
+            <a href={active.url} target="_blank" rel="noopener noreferrer"
               className="inline-flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground transition-colors">
               <ExternalLink className="h-3.5 w-3.5" />
-              فتح في Drive
+              فتح
             </a>
           </div>
         </DialogContent>
@@ -129,11 +172,18 @@ function statusDot(status: string): string {
 }
 
 function customerStageColor(_f: string): string {
-  return "bg-violet-50 text-violet-600";
+  return "bg-violet-50 dark:bg-violet-950 text-violet-600 dark:text-violet-300";
 }
 
 function typeColor(_t: string): string {
-  return "bg-zinc-100 text-zinc-600";
+  return "bg-zinc-100 dark:bg-zinc-800 text-zinc-600 dark:text-zinc-300";
+}
+
+function statusHref(slug: string, month: MonthValue, id: string, status: string): string {
+  if (status === "جاهز للنشر" || status === "تم النشر") {
+    return `/clients/${slug}/calendar/${month}/publish/${id}`;
+  }
+  return `/clients/${slug}/calendar/${month}/production/${id}`;
 }
 
 // ─── Day Cell ─────────────────────────────────────────────────────────────────
@@ -192,15 +242,56 @@ function Row({
 // ─── Actions Dropdown ─────────────────────────────────────────────────────────
 
 function ActionsMenu({
-  entry, slug, month, onDelete,
+  entry, slug, month, onDelete, onReload,
 }: {
   entry: EntryListItem;
   slug: string;
   month: MonthValue;
   onDelete: () => void;
+  onReload: () => void;
 }): ReactElement {
-  const [viewOpen,    setViewOpen]    = useState(false);
-  const [previewOpen, setPreviewOpen] = useState(false);
+  const [viewOpen,     setViewOpen]     = useState(false);
+  const [approveOpen,  setApproveOpen]  = useState(false);
+  const [approving,    setApproving]    = useState(false);
+  const [rejectOpen,   setRejectOpen]   = useState(false);
+  const [rejecting,    setRejecting]    = useState(false);
+  const [rejectNote,   setRejectNote]   = useState("");
+
+  async function handleApprove() {
+    setApproving(true);
+    try {
+      const result = await updateStatus(entry.id, "جاهز للنشر");
+      if (result.success) {
+        toast.success("تمت الموافقة — جاهز للنشر");
+        void sendTelegramNotification(
+          `✅ <b>جاهز للنشر</b>\n\n💡 <b>الفكرة:</b> ${entry.idea}\n📅 يوم ${entry.day}\n👤 العميل: ${slug}\n\nتمت الموافقة على الإبداع — جاهز للميديا باير.`
+        );
+        setApproveOpen(false);
+        onReload();
+      } else {
+        toast.error(result.error);
+      }
+    } finally {
+      setApproving(false);
+    }
+  }
+
+  async function handleReject() {
+    setRejecting(true);
+    try {
+      const result = await rejectEntry(entry.id, rejectNote);
+      if (result.success) {
+        toast.success("تم الرفض — رجع لـ قيد الإنتاج");
+        setRejectOpen(false);
+        setRejectNote("");
+        onReload();
+      } else {
+        toast.error(result.error);
+      }
+    } finally {
+      setRejecting(false);
+    }
+  }
 
   const handleShare = useCallback(async () => {
     const url = `${window.location.origin}/view/entry/${entry.id}`;
@@ -212,70 +303,77 @@ function ActionsMenu({
     }
   }, [entry.id]);
 
+  const btn = "h-6 w-6 p-0 inline-flex items-center justify-center rounded-md transition-colors";
+
   return (
     <>
-      <DropdownMenu>
-        <DropdownMenuTrigger asChild>
-          <Button type="button" size="sm" variant="ghost"
-            className="h-7 w-7 p-0 text-muted-foreground hover:text-foreground hover:bg-muted">
-            <MoreHorizontal className="h-4 w-4" />
-          </Button>
-        </DropdownMenuTrigger>
-        <DropdownMenuContent align="end">
-          <DropdownMenuItem onClick={() => setViewOpen(true)}>
-            <Eye className="h-3.5 w-3.5" />
-            عرض التفاصيل
-          </DropdownMenuItem>
-          <DropdownMenuItem asChild>
-            <Link href={`/clients/${slug}/calendar/${month}/edit/${entry.id}`}>
-              <Pencil className="h-3.5 w-3.5" />
-              تعديل
-            </Link>
-          </DropdownMenuItem>
-          {entry.status === "جاهز للمراجعة" && (
-            <DropdownMenuItem asChild>
-              <Link href={`/clients/${slug}/calendar/${month}/production/${entry.id}`}
-                className="text-amber-600 focus:text-amber-700 focus:bg-amber-50">
-                <CheckCircle2 className="h-3.5 w-3.5" />
-                مراجعة والموافقة
-              </Link>
-            </DropdownMenuItem>
-          )}
-          <DropdownMenuItem asChild>
-            <Link href={`/clients/${slug}/calendar/${month}/production/${entry.id}`}>
+      <div className="flex items-center gap-0.5">
+
+        {/* ── Status-based primary action ── */}
+        {entry.status === "قيد الإنتاج" && (
+          <Link href={`/clients/${slug}/calendar/${month}/production/${entry.id}`}
+            className={cn(btn, "text-muted-foreground hover:text-orange-600 hover:bg-orange-50")}
+            title="صفحة الإنتاج">
+            <Clapperboard className="h-3.5 w-3.5" />
+          </Link>
+        )}
+        {entry.status === "جاهز للمراجعة" && (
+          <>
+            <button type="button" onClick={() => setApproveOpen(true)}
+              className={cn(btn, "text-muted-foreground hover:text-amber-600 hover:bg-amber-50")}
+              title="منح الموافقة">
+              <CheckCircle2 className="h-3.5 w-3.5" />
+            </button>
+            <button type="button" onClick={() => setRejectOpen(true)}
+              className={cn(btn, "text-muted-foreground hover:text-destructive hover:bg-destructive/10")}
+              title="رفض الإبداع">
+              <XCircle className="h-3.5 w-3.5" />
+            </button>
+            <Link href={`/clients/${slug}/calendar/${month}/production/${entry.id}`}
+              className={cn(btn, "text-muted-foreground hover:text-orange-600 hover:bg-orange-50")}
+              title="صفحة الإنتاج">
               <Clapperboard className="h-3.5 w-3.5" />
-              صفحة الإنتاج
             </Link>
-          </DropdownMenuItem>
-          {entry.status === "جاهز للنشر" || entry.status === "تم النشر" ? (
-            <DropdownMenuItem asChild>
-              <Link href={`/clients/${slug}/calendar/${month}/publish/${entry.id}`}>
-                <Send className="h-3.5 w-3.5" />
-                صفحة النشر
-              </Link>
-            </DropdownMenuItem>
-          ) : (
-            <DropdownMenuItem disabled className="opacity-40 cursor-not-allowed">
+          </>
+        )}
+        {(entry.status === "جاهز للنشر" || entry.status === "تم النشر") && (
+          <>
+            <Link href={`/clients/${slug}/calendar/${month}/publish/${entry.id}`}
+              className={cn(btn, "text-muted-foreground hover:text-blue-600 hover:bg-blue-50")}
+              title="صفحة النشر">
               <Send className="h-3.5 w-3.5" />
-              <span>صفحة النشر</span>
-              <span className="mr-auto text-[10px] font-normal">
-                {entry.status === "قيد الإنتاج" ? "لسه قيد الإنتاج" : "بانتظار موافقة الكاتب"}
-              </span>
-            </DropdownMenuItem>
-          )}
-          <DropdownMenuItem onClick={handleShare}>
-            <Share2 className="h-3.5 w-3.5" />
-            نسخ رابط المشاركة
-          </DropdownMenuItem>
-          <DropdownMenuSeparator />
-          <DropdownMenuItem
-            className="text-destructive focus:text-destructive focus:bg-destructive/10"
-            onClick={onDelete}>
-            <Trash2 className="h-3.5 w-3.5" />
-            حذف
-          </DropdownMenuItem>
-        </DropdownMenuContent>
-      </DropdownMenu>
+            </Link>
+            <Link href={`/clients/${slug}/calendar/${month}/production/${entry.id}`}
+              className={cn(btn, "text-muted-foreground hover:text-orange-600 hover:bg-orange-50")}
+              title="صفحة الإنتاج">
+              <Clapperboard className="h-3.5 w-3.5" />
+            </Link>
+          </>
+        )}
+
+        {/* ── Always present ── */}
+        <button type="button" onClick={() => setViewOpen(true)}
+          className={cn(btn, "text-muted-foreground hover:text-foreground hover:bg-muted")}
+          title="عرض التفاصيل">
+          <Eye className="h-3.5 w-3.5" />
+        </button>
+        <Link href={`/clients/${slug}/calendar/${month}/edit/${entry.id}`}
+          className={cn(btn, "text-muted-foreground hover:text-foreground hover:bg-muted")}
+          title="تعديل">
+          <Pencil className="h-3.5 w-3.5" />
+        </Link>
+        <button type="button" onClick={handleShare}
+          className={cn(btn, "text-muted-foreground hover:text-foreground hover:bg-muted")}
+          title="نسخ رابط المشاركة">
+          <Share2 className="h-3.5 w-3.5" />
+        </button>
+        <button type="button" onClick={onDelete}
+          className={cn(btn, "text-muted-foreground hover:text-destructive hover:bg-destructive/10")}
+          title="أرشفة">
+          <Archive className="h-3.5 w-3.5" />
+        </button>
+
+      </div>
 
       <Dialog open={viewOpen} onOpenChange={setViewOpen}>
         <DialogContent dir="rtl" className="max-h-[85vh] overflow-y-auto sm:max-w-2xl">
@@ -284,7 +382,7 @@ function ActionsMenu({
           </DialogHeader>
           <div className="space-y-4 text-sm">
             <Row label="الفكرة" value={entry.idea} />
-            <Row label="مرحلة العميل" value={entry.customerStage.join(", ")} />
+            <Row label="نوع الحملة" value={entry.customerStage.join(", ")} />
             <Row label="نوع المحتوى" value={entry.contentType} />
             <Row label="الحالة" value={entry.status} />
             <Row label="القنوات" value={entry.channels.join(", ")} />
@@ -294,7 +392,25 @@ function ActionsMenu({
             {entry.script      ? <Row label="السكريبت"   value={entry.script} link={entry.script.startsWith("http") ? entry.script : undefined} /> : null}
             {entry.voiceTone   ? <Row label="نبرة الصوت" value={entry.voiceTone} /> : null}
             {entry.inspiration ? <Row label="الإلهام"    value={entry.inspiration} /> : null}
-            {entry.assetLink   ? <Row label="رابط الملف" value={entry.assetLink} link={entry.assetLink} /> : null}
+            {(() => {
+              const viewAssets: AssetItem[] = entry.assets && (entry.assets as AssetItem[]).length > 0
+                ? (entry.assets as AssetItem[])
+                : entry.assetLink ? [{ id: "legacy", url: entry.assetLink, type: "video" }] : [];
+              return viewAssets.length > 0 ? (
+                <div className="grid grid-cols-[120px_1fr] gap-2">
+                  <span className="text-xs font-medium text-muted-foreground pt-0.5">الملفات ({viewAssets.length})</span>
+                  <div className="space-y-1">
+                    {viewAssets.map((a, i) => (
+                      <a key={a.id} href={a.url} target="_blank" rel="noopener noreferrer"
+                        className="flex items-center gap-1 text-primary underline text-xs">
+                        {a.label || `ملف ${i + 1}`}
+                        <ExternalLink className="h-3 w-3 shrink-0" />
+                      </a>
+                    ))}
+                  </div>
+                </div>
+              ) : null;
+            })()}
             {entry.scheduledDate ? <Row label="موعد النشر" value={new Date(entry.scheduledDate).toLocaleDateString("ar-SA")} /> : null}
             {entry.scheduledTime ? <Row label="وقت النشر"  value={entry.scheduledTime} /> : null}
             {entry.channelLinks && Object.keys(entry.channelLinks as object).length > 0 ? (
@@ -319,37 +435,115 @@ function ActionsMenu({
         </DialogContent>
       </Dialog>
 
-      {/* ── Creative Preview ── */}
-      {entry.assetLink && (
-        <Dialog open={previewOpen} onOpenChange={setPreviewOpen}>
-          <DialogContent className="sm:max-w-3xl p-0 overflow-hidden gap-0">
-            <DialogHeader className="px-4 py-3 border-b border-border">
-              <DialogTitle className="text-sm font-semibold" dir="rtl">
-                {entry.idea || `يوم ${entry.day}`}
-              </DialogTitle>
-            </DialogHeader>
-            {getDriveEmbedUrl(entry.assetLink) ? (
-              <iframe
-                src={getDriveEmbedUrl(entry.assetLink)!}
-                className="w-full"
-                style={{ height: "70vh", border: "none" }}
-                allow="autoplay"
-              />
-            ) : (
-              <div className="flex items-center justify-center h-48 text-sm text-muted-foreground">
-                لا يمكن معاينة هذا النوع من الملفات
+      {/* ── Approval Dialog ── */}
+      {(() => {
+        const approveAssets = getEntryAssets(entry);
+        return (
+          <Dialog open={approveOpen} onOpenChange={setApproveOpen}>
+            <DialogContent className="sm:max-w-2xl p-0 overflow-hidden gap-0" dir="rtl">
+              <DialogHeader className="px-4 py-3 border-b border-border flex flex-row items-center justify-between">
+                <div className="flex items-center gap-3 min-w-0">
+                  <DialogTitle className="text-sm font-semibold truncate">
+                    منح الموافقة — {entry.idea || `يوم ${entry.day}`}
+                  </DialogTitle>
+                  {approveAssets.length > 0 && (
+                    <span className="shrink-0 text-[11px] font-bold bg-muted text-muted-foreground px-2 py-0.5 rounded-full">
+                      {approveAssets.length} {approveAssets.length === 1 ? "ملف" : "ملفات"}
+                    </span>
+                  )}
+                </div>
+                <button type="button" onClick={() => setApproveOpen(false)}
+                  className="shrink-0 rounded-sm p-1 text-muted-foreground hover:text-foreground hover:bg-muted transition-colors">
+                  <X className="h-4 w-4" />
+                </button>
+              </DialogHeader>
+
+              {/* Creative preview */}
+              <div className="max-h-[55vh] overflow-y-auto">
+                {approveAssets.length === 0 ? (
+                  <div className="flex items-center justify-center py-10 text-sm text-muted-foreground">
+                    لا يوجد إبداع مرفق
+                  </div>
+                ) : (
+                  <div className="space-y-2 p-3">
+                    {approveAssets.map((a, i) => (
+                      <div key={a.id} className="rounded-xl border border-border overflow-hidden">
+                        {a.type === "image" ? (
+                          <img src={a.url} alt={a.label || `ملف ${i + 1}`} className="w-full max-h-64 object-contain bg-black/5" />
+                        ) : (
+                          <video src={a.url} controls className="w-full max-h-64" preload="metadata" />
+                        )}
+                        <div className="px-3 py-2 flex items-center justify-between border-t border-border">
+                          <span className="text-xs text-muted-foreground">{a.label || `ملف ${i + 1}`}</span>
+                          <a href={a.url} target="_blank" rel="noopener noreferrer"
+                            className="inline-flex items-center gap-1 text-xs text-primary hover:underline">
+                            <ExternalLink className="h-3 w-3" />
+                            فتح
+                          </a>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
               </div>
-            )}
-            <div className="px-4 py-2 border-t border-border flex justify-end">
-              <a href={entry.assetLink} target="_blank" rel="noopener noreferrer"
-                className="inline-flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground transition-colors">
-                <ExternalLink className="h-3.5 w-3.5" />
-                فتح في Drive
-              </a>
-            </div>
-          </DialogContent>
-        </Dialog>
-      )}
+
+              {/* Approve bar */}
+              <div className="px-4 py-3 border-t border-border flex items-center justify-end gap-3 bg-muted/20">
+                <Button type="button" variant="outline" size="sm" onClick={() => setApproveOpen(false)}>
+                  إلغاء
+                </Button>
+                <Button
+                  type="button"
+                  size="sm"
+                  disabled={approving}
+                  onClick={handleApprove}
+                  className="gap-2 bg-green-600 hover:bg-green-700 text-white">
+                  <CheckCircle2 className="h-4 w-4" />
+                  {approving ? "جاري الموافقة..." : "منح الموافقة — جاهز للنشر"}
+                </Button>
+              </div>
+            </DialogContent>
+          </Dialog>
+        );
+      })()}
+
+      {/* Rejection Dialog */}
+      <Dialog open={rejectOpen} onOpenChange={(o) => { if (!o) { setRejectOpen(false); setRejectNote(""); } }}>
+        <DialogContent className="sm:max-w-md" dir="rtl">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2 text-destructive">
+              <XCircle className="h-4 w-4" />
+              رفض الإبداع
+            </DialogTitle>
+          </DialogHeader>
+          <div className="space-y-3 pt-1">
+            <p className="text-sm text-muted-foreground">
+              سيرجع المنشور لحالة <span className="font-semibold text-foreground">قيد الإنتاج</span>. أضف سبب الرفض حتى يعرف الإبداع ما المطلوب.
+            </p>
+            <Textarea
+              placeholder="سبب الرفض... (مثال: الألوان لا تتوافق مع الهوية، النص يحتاج مراجعة)"
+              value={rejectNote}
+              onChange={(e) => setRejectNote(e.target.value)}
+              rows={3}
+              className="resize-none text-sm"
+            />
+          </div>
+          <div className="flex justify-end gap-2 pt-1">
+            <Button type="button" variant="outline" size="sm" onClick={() => { setRejectOpen(false); setRejectNote(""); }}>
+              إلغاء
+            </Button>
+            <Button
+              type="button"
+              size="sm"
+              disabled={rejecting}
+              onClick={handleReject}
+              className="gap-2 bg-destructive hover:bg-destructive/90 text-destructive-foreground">
+              <XCircle className="h-4 w-4" />
+              {rejecting ? "جاري الرفض..." : "رفض وإعادة للإنتاج"}
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
     </>
   );
 }
@@ -367,7 +561,7 @@ export type CalendarTableProps = {
 };
 
 export function CalendarTable({
-  entries, slug, month, loading, onDelete,
+  entries, slug, month, loading, onDelete, onReload,
 }: CalendarTableProps): ReactElement {
   const [deleteTargetId, setDeleteTargetId] = useState<string | null>(null);
   const [filterStatus, setFilterStatus] = useState<string>("الكل");
@@ -393,7 +587,7 @@ export function CalendarTable({
 
   const COL_TOGGLES = [
     { id: "contentType",   label: "النوع" },
-    { id: "customerStage", label: "مرحلة العميل" },
+    { id: "customerStage", label: "نوع الحملة" },
     { id: "channels",      label: "القنوات" },
     { id: "status",        label: "الحالة" },
   ];
@@ -562,20 +756,43 @@ export function CalendarTable({
             <div className="h-6 w-6 rounded-full border-2 border-primary border-t-transparent animate-spin" />
             <p className="text-sm text-muted-foreground">جاري التحميل...</p>
           </div>
+        ) : entries.length === 0 ? (
+          <div className="flex flex-col items-center justify-center py-20 gap-4 bg-card">
+            <div className="h-16 w-16 rounded-2xl border-2 border-dashed border-border flex items-center justify-center text-muted-foreground/30">
+              <Search className="h-7 w-7" />
+            </div>
+            <div className="text-center space-y-1">
+              <p className="text-sm font-semibold text-foreground">{monthLabel} — لا يوجد محتوى بعد</p>
+              <p className="text-xs text-muted-foreground">ابدأ بإضافة أول منشور لهذا الشهر من الزر في الشريط الجانبي</p>
+            </div>
+          </div>
         ) : (
           <Table>
             <TableHeader className="sticky top-0 z-10">
-              <TableRow className="border-b border-gray-300" style={{ backgroundColor: '#e2e8f0' }}>
-                <TableHead className="w-24 text-center px-3 py-3 text-[10px] font-bold uppercase tracking-widest text-zinc-600">اليوم</TableHead>
-                <TableHead className="px-3 py-3 text-[10px] font-bold uppercase tracking-widest text-zinc-600">
+              <TableRow className="border-b border-border bg-muted/60">
+                <TableHead className="w-20 text-center px-3 py-3 text-xs font-bold uppercase tracking-wide text-muted-foreground">اليوم</TableHead>
+                <TableHead className="px-3 py-3 text-xs font-bold uppercase tracking-wide text-muted-foreground">
                   <button type="button" onClick={() => toggleSort("idea")}
                     className="inline-flex items-center gap-1.5 hover:text-foreground transition-colors">
                     الفكرة
                     {sortCol === "idea" ? (sortDir === "asc" ? <ArrowUp className="h-3 w-3" /> : <ArrowDown className="h-3 w-3" />) : <ArrowUpDown className="h-3 w-3 opacity-30" />}
                   </button>
                 </TableHead>
+                {isVisible("status") && (
+                  <TableHead className="w-36 px-3 py-3 text-xs font-bold uppercase tracking-wide text-muted-foreground">
+                    <button type="button" onClick={() => toggleSort("status")}
+                      className="inline-flex items-center gap-1.5 hover:text-foreground transition-colors">
+                      الحالة
+                      {sortCol === "status" ? (sortDir === "asc" ? <ArrowUp className="h-3 w-3" /> : <ArrowDown className="h-3 w-3" />) : <ArrowUpDown className="h-3 w-3 opacity-30" />}
+                    </button>
+                  </TableHead>
+                )}
+                {isVisible("channels") && (
+                  <TableHead className="w-24 px-3 py-3 text-xs font-bold uppercase tracking-wide text-muted-foreground">القنوات</TableHead>
+                )}
+                <TableHead className="w-10 text-center px-2 py-3 text-xs font-bold uppercase tracking-wide text-muted-foreground">إبداع</TableHead>
                 {isVisible("contentType") && (
-                  <TableHead className="w-24 px-3 py-3 text-[10px] font-bold uppercase tracking-widest text-zinc-600">
+                  <TableHead className="w-20 px-3 py-3 text-xs font-bold uppercase tracking-wide text-muted-foreground">
                     <button type="button" onClick={() => toggleSort("contentType")}
                       className="inline-flex items-center gap-1.5 hover:text-foreground transition-colors">
                       النوع
@@ -584,28 +801,14 @@ export function CalendarTable({
                   </TableHead>
                 )}
                 {isVisible("customerStage") && (
-                  <TableHead className="w-36 px-3 py-3 text-[10px] font-bold uppercase tracking-widest text-zinc-600">
+                  <TableHead className="w-28 px-3 py-3 text-xs font-bold uppercase tracking-wide text-muted-foreground">
                     <button type="button" onClick={() => toggleSort("customerStage")}
-                      className="inline-flex items-center gap-1.5 hover:text-foreground transition-colors">
-                      مرحلة العميل
+                      className="inline-flex items-center gap-1.5 hover:text-foreground transition-colors whitespace-nowrap">
+                      نوع الحملة
                       {sortCol === "customerStage" ? (sortDir === "asc" ? <ArrowUp className="h-3 w-3" /> : <ArrowDown className="h-3 w-3" />) : <ArrowUpDown className="h-3 w-3 opacity-30" />}
                     </button>
                   </TableHead>
                 )}
-                {isVisible("channels") && (
-                  <TableHead className="w-28 px-3 py-3 text-[10px] font-bold uppercase tracking-widest text-zinc-600">القنوات</TableHead>
-                )}
-                {isVisible("status") && (
-                  <TableHead className="w-40 px-3 py-3 text-[10px] font-bold uppercase tracking-widest text-zinc-600">
-                    <button type="button" onClick={() => toggleSort("status")}
-                      className="inline-flex items-center gap-1.5 hover:text-foreground transition-colors">
-                      الحالة
-                      {sortCol === "status" ? (sortDir === "asc" ? <ArrowUp className="h-3 w-3" /> : <ArrowDown className="h-3 w-3" />) : <ArrowUpDown className="h-3 w-3 opacity-30" />}
-                    </button>
-                  </TableHead>
-                )}
-                <TableHead className="w-12 text-center px-2 py-3 text-[10px] font-bold uppercase tracking-widest text-zinc-600">كريتيف</TableHead>
-                <TableHead className="w-10 px-2 py-2.5" />
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -620,7 +823,7 @@ export function CalendarTable({
                 ) : (
                   sortedFiltered.map((entry) => (
                     <TableRow key={entry.id} className={cn(
-                      "group transition-all duration-150 border-r-2 cursor-pointer hover:bg-muted/40",
+                      "group/row relative transition-all duration-150 border-r-2 cursor-pointer hover:bg-muted/40",
                       rowBorderClass(entry.status),
                     )}>
                       <TableCell className="text-center px-3 py-2.5">
@@ -631,22 +834,15 @@ export function CalendarTable({
                           {entry.idea || <span className="text-muted-foreground italic text-xs">بدون فكرة</span>}
                         </p>
                       </TableCell>
-                      {isVisible("contentType") && (
+                      {isVisible("status") && (
                         <TableCell className="px-3 py-2.5">
-                          {entry.contentType ? (
-                            <span className={cn("rounded-full px-2.5 py-0.5 text-[10px] font-semibold", typeColor(entry.contentType))}>
-                              {TYPE_LABELS[entry.contentType] ?? entry.contentType}
-                            </span>
-                          ) : <span className="text-muted-foreground/40 text-xs">—</span>}
-                        </TableCell>
-                      )}
-                      {isVisible("customerStage") && (
-                        <TableCell className="px-3 py-2.5">
-                          <div className="flex flex-wrap gap-1">
-                            {entry.customerStage.map((f) => (
-                              <span key={f} className={cn("rounded-full px-2.5 py-0.5 text-[10px] font-semibold", customerStageColor(f))}>{f}</span>
-                            ))}
-                          </div>
+                          <Link
+                            href={statusHref(slug, month, entry.id, entry.status)}
+                            onClick={(e) => e.stopPropagation()}
+                            className={cn("inline-flex items-center gap-1.5 rounded-full border px-2.5 py-0.5 text-[10px] font-semibold transition-opacity hover:opacity-75", statusColor(entry.status))}>
+                            <span className={cn("h-1.5 w-1.5 rounded-full shrink-0", statusDot(entry.status))} />
+                            {entry.status}
+                          </Link>
                         </TableCell>
                       )}
                       {isVisible("channels") && (
@@ -661,20 +857,30 @@ export function CalendarTable({
                           </div>
                         </TableCell>
                       )}
-                      {isVisible("status") && (
-                        <TableCell className="px-3 py-2.5">
-                          <span className={cn("inline-flex items-center gap-1.5 rounded-full border px-2.5 py-0.5 text-[10px] font-semibold", statusColor(entry.status))}>
-                            <span className={cn("h-1.5 w-1.5 rounded-full shrink-0", statusDot(entry.status))} />
-                            {entry.status}
-                          </span>
-                        </TableCell>
-                      )}
                       <TableCell className="px-2 py-2.5 text-center">
                         <CreativeCell entry={entry} />
                       </TableCell>
-                      <TableCell className="px-2 py-2.5">
-                        <div className="opacity-0 group-hover:opacity-100 transition-opacity duration-150">
-                          <ActionsMenu entry={entry} slug={slug} month={month} onDelete={() => setDeleteTargetId(entry.id)} />
+                      {isVisible("contentType") && (
+                        <TableCell className="px-3 py-2.5">
+                          {entry.contentType ? (
+                            <span className={cn("rounded-full px-2.5 py-0.5 text-[10px] font-semibold", typeColor(entry.contentType))}>
+                              {TYPE_LABELS[entry.contentType] ?? entry.contentType}
+                            </span>
+                          ) : <span className="text-muted-foreground/40 text-xs">—</span>}
+                        </TableCell>
+                      )}
+                      {isVisible("customerStage") && (
+                        <TableCell className="px-3 py-2.5">
+                          <div className="flex flex-wrap gap-1">
+                            {entry.customerStage.map((f) => (
+                              <span key={f} className={cn("rounded-full px-2.5 py-0.5 text-[10px] font-semibold", customerStageColor(f))}>{CUSTOMER_STAGE_LABELS[f] ?? f}</span>
+                            ))}
+                          </div>
+                        </TableCell>
+                      )}
+                      <TableCell className="w-0 p-0">
+                        <div className="absolute left-0 inset-y-0 z-10 flex items-center gap-0.5 px-3 opacity-0 group-hover/row:opacity-100 group-hover/row:pointer-events-auto pointer-events-none transition-opacity duration-150 bg-card border-r border-border shadow-[-4px_0_8px_rgba(0,0,0,0.04)]">
+                          <ActionsMenu entry={entry} slug={slug} month={month} onDelete={() => setDeleteTargetId(entry.id)} onReload={onReload} />
                         </div>
                       </TableCell>
                     </TableRow>
@@ -699,7 +905,7 @@ export function CalendarTable({
                   return dayEntries.map((entry, idx) => (
                     <Fragment key={entry.id}>
                       <TableRow className={cn(
-                        "group transition-all duration-150 border-r-2 cursor-pointer hover:bg-muted/40",
+                        "group/row relative transition-all duration-150 border-r-2 cursor-pointer hover:bg-muted/40",
                         rowBorderClass(entry.status),
                       )}>
                         <TableCell className="text-center px-3 py-2.5">
@@ -712,22 +918,15 @@ export function CalendarTable({
                             {entry.idea || <span className="text-muted-foreground italic text-xs">بدون فكرة</span>}
                           </p>
                         </TableCell>
-                        {isVisible("contentType") && (
+                        {isVisible("status") && (
                           <TableCell className="px-3 py-2.5">
-                            {entry.contentType ? (
-                              <span className={cn("rounded-full px-2.5 py-0.5 text-[10px] font-semibold", typeColor(entry.contentType))}>
-                                {TYPE_LABELS[entry.contentType] ?? entry.contentType}
-                              </span>
-                            ) : <span className="text-muted-foreground/40 text-xs">—</span>}
-                          </TableCell>
-                        )}
-                        {isVisible("customerStage") && (
-                          <TableCell className="px-3 py-2.5">
-                            <div className="flex flex-wrap gap-1">
-                              {entry.customerStage.map((f) => (
-                                <span key={f} className={cn("rounded-full px-2.5 py-0.5 text-[10px] font-semibold", customerStageColor(f))}>{f}</span>
-                              ))}
-                            </div>
+                            <Link
+                              href={statusHref(slug, month, entry.id, entry.status)}
+                              onClick={(e) => e.stopPropagation()}
+                              className={cn("inline-flex items-center gap-1.5 rounded-full border px-2.5 py-0.5 text-[10px] font-semibold transition-opacity hover:opacity-75", statusColor(entry.status))}>
+                              <span className={cn("h-1.5 w-1.5 rounded-full shrink-0", statusDot(entry.status))} />
+                              {entry.status}
+                            </Link>
                           </TableCell>
                         )}
                         {isVisible("channels") && (
@@ -743,20 +942,30 @@ export function CalendarTable({
                             </div>
                           </TableCell>
                         )}
-                        {isVisible("status") && (
-                          <TableCell className="px-3 py-2.5">
-                            <span className={cn("inline-flex items-center gap-1.5 rounded-full border px-2.5 py-0.5 text-[10px] font-semibold", statusColor(entry.status))}>
-                              <span className={cn("h-1.5 w-1.5 rounded-full shrink-0", statusDot(entry.status))} />
-                              {entry.status}
-                            </span>
-                          </TableCell>
-                        )}
                         <TableCell className="px-2 py-2.5 text-center">
                           <CreativeCell entry={entry} />
                         </TableCell>
-                        <TableCell className="px-2 py-2.5">
-                          <div className="opacity-0 group-hover:opacity-100 transition-opacity duration-150">
-                            <ActionsMenu entry={entry} slug={slug} month={month} onDelete={() => setDeleteTargetId(entry.id)} />
+                        {isVisible("contentType") && (
+                          <TableCell className="px-3 py-2.5">
+                            {entry.contentType ? (
+                              <span className={cn("rounded-full px-2.5 py-0.5 text-[10px] font-semibold", typeColor(entry.contentType))}>
+                                {TYPE_LABELS[entry.contentType] ?? entry.contentType}
+                              </span>
+                            ) : <span className="text-muted-foreground/40 text-xs">—</span>}
+                          </TableCell>
+                        )}
+                        {isVisible("customerStage") && (
+                          <TableCell className="px-3 py-2.5">
+                            <div className="flex flex-wrap gap-1">
+                              {entry.customerStage.map((f) => (
+                                <span key={f} className={cn("rounded-full px-2.5 py-0.5 text-[10px] font-semibold", customerStageColor(f))}>{CUSTOMER_STAGE_LABELS[f] ?? f}</span>
+                              ))}
+                            </div>
+                          </TableCell>
+                        )}
+                        <TableCell className="w-0 p-0">
+                          <div className="absolute left-0 inset-y-0 z-10 flex items-center gap-0.5 px-3 opacity-0 group-hover/row:opacity-100 group-hover/row:pointer-events-auto pointer-events-none transition-opacity duration-150 bg-card border-r border-border shadow-[-4px_0_8px_rgba(0,0,0,0.04)]">
+                            <ActionsMenu entry={entry} slug={slug} month={month} onDelete={() => setDeleteTargetId(entry.id)} onReload={onReload} />
                           </div>
                         </TableCell>
                       </TableRow>
@@ -828,9 +1037,9 @@ export function CalendarTable({
       <AlertDialog open={deleteTargetId !== null} onOpenChange={(open) => !open && setDeleteTargetId(null)}>
         <AlertDialogContent dir="rtl">
           <AlertDialogHeader>
-            <AlertDialogTitle>تأكيد الحذف</AlertDialogTitle>
+            <AlertDialogTitle>تأكيد الأرشفة</AlertDialogTitle>
             <AlertDialogDescription>
-              هل أنت متأكد من حذف هذا المحتوى؟ لا يمكن التراجع عن هذا الإجراء.
+              سيُخفى هذا المحتوى من الجدول ويُحفظ في الأرشيف. يمكنك استرجاعه في أي وقت.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
@@ -838,7 +1047,7 @@ export function CalendarTable({
             <AlertDialogAction type="button"
               className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
               onClick={() => { if (deleteTargetId) void onDelete(deleteTargetId); setDeleteTargetId(null); }}>
-              حذف نهائياً
+              أرشفة
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

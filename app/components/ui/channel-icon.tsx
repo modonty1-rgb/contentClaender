@@ -40,6 +40,7 @@ export function ChannelIcon({ channel, href }: Props): ReactElement {
   const inner = (
     <span
       title={hasLink ? `Open ${entry.label}` : entry.label}
+      aria-label={entry.label}
       className={[
         "inline-flex h-5 w-5 items-center justify-center rounded shrink-0 transition-opacity",
         entry.bg,

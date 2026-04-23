@@ -3,7 +3,7 @@
 import type { ReactElement } from "react";
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { ExternalLink, CheckCircle2, Send } from "lucide-react";
+import { ExternalLink, CheckCircle2, Send, Download, Loader2 } from "lucide-react";
 import { Button } from "@/app/components/ui/button";
 import { Input } from "@/app/components/ui/input";
 import { Label } from "@/app/components/ui/label";
@@ -14,7 +14,8 @@ import { sendTelegramNotification } from "@/app/actions/telegram";
 import { CHANNELS } from "@/app/components/ui/channel-icon";
 import { ChannelIcon } from "@/app/components/ui/channel-icon";
 import { ORG_PAID_OPTIONS, CURRENCY_OPTIONS } from "@/lib/constants";
-import type { EntryListItem } from "@/app/actions/entries";
+import type { EntryListItem, AssetItem } from "@/app/actions/entries";
+import { downloadWithProgress } from "@/lib/download-with-progress";
 
 // ─── Chip radio ───────────────────────────────────────────────────────────────
 
@@ -77,6 +78,7 @@ export function PublishForm({ entry, slug, month }: Props): ReactElement {
   const [scheduledTime, setScheduledTime] = useState(entry.scheduledTime ?? "");
   const [links,        setLinks]        = useState<Record<string, string>>(existingLinks);
   const [saving, setSaving] = useState(false);
+  const [dlProgress, setDlProgress] = useState<Record<string, number>>({});
 
   const isPublished = entry.status === "تم النشر";
 
@@ -155,16 +157,86 @@ export function PublishForm({ entry, slug, month }: Props): ReactElement {
             </div>
           </div>
         )}
-        {entry.assetLink && (
-          <div className="flex items-center gap-2">
-            <span className="text-muted-foreground min-w-28 shrink-0 text-xs">رابط الملف</span>
-            <a href={entry.assetLink} target="_blank" rel="noopener noreferrer"
-              className="inline-flex items-center gap-1 text-sm text-primary underline break-all">
-              {entry.assetLink.length > 50 ? entry.assetLink.slice(0, 50) + "…" : entry.assetLink}
-              <ExternalLink className="h-3 w-3 shrink-0" />
-            </a>
-          </div>
-        )}
+        {(() => {
+          const entryAssets: AssetItem[] = entry.assets && (entry.assets as AssetItem[]).length > 0
+            ? (entry.assets as AssetItem[])
+            : entry.assetLink ? [{ id: "legacy", url: entry.assetLink, type: "video" }] : [];
+          if (entryAssets.length === 0) return (
+            <div className="flex items-center justify-center rounded-xl border-2 border-dashed border-border py-8 text-sm text-muted-foreground">
+              لا يوجد إبداع مرفق بعد
+            </div>
+          );
+          return (
+            <div className="flex flex-col gap-4">
+              {entryAssets.map((a, i) => (
+                <div key={a.id} className="rounded-xl border border-border overflow-hidden shadow-sm">
+                  {/* Preview */}
+                  {a.type === "image" ? (
+                    <img
+                      src={a.url}
+                      alt={a.label || `ملف ${i + 1}`}
+                      className="w-full max-h-[420px] object-contain bg-black/5"
+                    />
+                  ) : (
+                    <video
+                      src={a.url}
+                      controls
+                      className="w-full max-h-[420px] bg-black"
+                      preload="metadata"
+                    />
+                  )}
+
+                  {/* Footer bar */}
+                  <div className="flex items-center gap-2 px-3 py-2 border-t border-border bg-muted/20">
+                    <span className="text-sm font-medium text-foreground flex-1 truncate">{a.label || `ملف ${i + 1}`}</span>
+                    <span className="text-[10px] text-muted-foreground/60 px-1.5 py-0.5 rounded-full border border-border">
+                      {a.type === "video" ? "فيديو" : "صورة"}
+                    </span>
+                    {a.width && a.height && (
+                      <span className="text-[10px] text-muted-foreground/50 hidden sm:inline">
+                        {a.width}×{a.height}
+                      </span>
+                    )}
+                    <a href={a.url} target="_blank" rel="noopener noreferrer"
+                      className="flex items-center gap-1 px-2 py-1 rounded-md text-xs text-muted-foreground hover:text-foreground hover:bg-muted transition-colors shrink-0">
+                      <ExternalLink className="h-3.5 w-3.5" />
+                      فتح
+                    </a>
+                    <button
+                      type="button"
+                      disabled={dlProgress[a.id] !== undefined}
+                      onClick={async () => {
+                        try {
+                          await downloadWithProgress(
+                            a.url,
+                            a.label || `ملف-${i + 1}`,
+                            (pct) => setDlProgress((p) => ({ ...p, [a.id]: pct })),
+                          );
+                        } catch { toast.error("فشل التحميل"); }
+                        finally { setTimeout(() => setDlProgress((p) => { const n = { ...p }; delete n[a.id]; return n; }), 1200); }
+                      }}
+                      className="relative overflow-hidden flex items-center gap-1 px-2.5 py-1 rounded-md text-xs bg-primary text-primary-foreground hover:bg-primary/90 disabled:cursor-not-allowed transition-colors shrink-0 min-w-[72px] justify-center"
+                    >
+                      {dlProgress[a.id] !== undefined && (
+                        <span
+                          className="absolute inset-0 bg-white/20 transition-all duration-200 ease-out"
+                          style={{ transform: `scaleX(${(dlProgress[a.id] ?? 0) / 100})`, transformOrigin: "left" }}
+                        />
+                      )}
+                      <span className="relative flex items-center gap-1">
+                        {dlProgress[a.id] !== undefined ? (
+                          dlProgress[a.id] === 100 ? <>✓ تم</> : <><Loader2 className="h-3 w-3 animate-spin" />{dlProgress[a.id]}%</>
+                        ) : (
+                          <><Download className="h-3.5 w-3.5" />تحميل</>
+                        )}
+                      </span>
+                    </button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          );
+        })()}
       </Section>
 
       {/* Campaign settings */}
@@ -244,7 +316,7 @@ export function PublishForm({ entry, slug, month }: Props): ReactElement {
                   <ChannelIcon channel={ch} href={hasLink ? links[ch] : undefined} />
                   <Input
                     dir="ltr"
-                    placeholder={`${meta?.label ?? ch} URL...`}
+                    placeholder={`رابط ${meta?.label ?? ch}...`}
                     value={links[ch] ?? ""}
                     onChange={(e) => setLinks((prev) => ({ ...prev, [ch]: e.target.value }))}
                     className="h-8 text-xs flex-1 font-mono"

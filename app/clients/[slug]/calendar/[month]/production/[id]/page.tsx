@@ -1,11 +1,12 @@
 import { notFound } from "next/navigation";
 import Link from "next/link";
-import { ArrowRight } from "lucide-react";
+import { ArrowRight, Sparkles } from "lucide-react";
 import { getEntryById } from "@/app/actions/entries";
 import { getClientBySlug } from "@/app/actions/clients";
 import { MONTHS } from "@/lib/constants";
 import type { MonthValue } from "@/lib/constants";
 import { ProductionForm } from "./ProductionForm";
+import { ModeToggle } from "@/app/components/mode-toggle";
 
 type Props = { params: Promise<{ slug: string; month: string; id: string }> };
 
@@ -42,7 +43,12 @@ export default async function ProductionPage({ params }: Props) {
               يوم {entry.day} — {entry.idea || "بدون فكرة"}
             </h1>
           </div>
-          <span className="mr-auto text-xs text-muted-foreground font-mono opacity-60 shrink-0">{client.name}</span>
+          <Link href="/flow" className="mr-auto inline-flex items-center gap-1.5 rounded-lg border border-border bg-card px-2.5 py-1 text-xs font-medium text-muted-foreground hover:text-foreground hover:bg-muted transition-colors shrink-0">
+            <Sparkles className="h-3 w-3" />
+            سير العمل
+          </Link>
+          <span className="text-xs text-muted-foreground font-mono opacity-60 shrink-0">{client.name}</span>
+          <ModeToggle />
         </div>
       </header>
 

@@ -3,7 +3,7 @@
 import type { ReactElement, ReactNode } from "react";
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { ExternalLink, CheckCircle2, Link2, AlertCircle, PlayCircle } from "lucide-react";
+import { ExternalLink, CheckCircle2, Link2, AlertCircle, Plus, Trash2, Film, ImageIcon, Upload, Loader2, Copy, Check, XCircle } from "lucide-react";
 import {
   FaVideo, FaLayerGroup, FaImage, FaMobileScreen, FaClapperboard,
   FaBullhorn, FaThumbsUp, FaClipboardUser, FaBagShopping,
@@ -17,7 +17,7 @@ import { updateEntry, updateStatus } from "@/app/actions/entries";
 import { sendTelegramNotification } from "@/app/actions/telegram";
 import { ChannelIcon } from "@/app/components/ui/channel-icon";
 import { MONTHS } from "@/lib/constants";
-import type { EntryListItem } from "@/app/actions/entries";
+import type { EntryListItem, AssetItem } from "@/app/actions/entries";
 import type { MonthValue } from "@/lib/constants";
 
 // ─── Metadata ─────────────────────────────────────────────────────────────────
@@ -106,70 +106,119 @@ type Props = {
   month: MonthValue;
 };
 
+function isCloudinaryUrl(url: string): boolean {
+  return url.includes("res.cloudinary.com");
+}
+
+function parseAssets(entry: EntryListItem): AssetItem[] {
+  if (entry.assets && (entry.assets as AssetItem[]).length > 0) return entry.assets as AssetItem[];
+  if (entry.assetLink) return [{ id: "legacy", url: entry.assetLink, type: "video", label: "" }];
+  return [];
+}
+
 export function ProductionForm({ entry, slug, month }: Props): ReactElement {
   const router = useRouter();
-  const [assetLink, setAssetLink] = useState(entry.assetLink ?? "");
+  const [assets, setAssets] = useState<AssetItem[]>(() => parseAssets(entry));
+  const [previewAsset, setPreviewAsset] = useState<AssetItem | null>(null);
   const [saving, setSaving] = useState(false);
-  const [previewOpen, setPreviewOpen] = useState(false);
+  const [uploadingId, setUploadingId] = useState<string | null>(null);
+  const [uploadProgress, setUploadProgress] = useState<Record<string, number>>({});
+  const [copiedId, setCopiedId] = useState<string | null>(null);
 
-  function getDriveEmbedUrl(url: string): string | null {
-    const m = url.match(/\/file\/d\/([a-zA-Z0-9_-]+)/);
-    return m ? `https://drive.google.com/file/d/${m[1]}/preview` : null;
+  async function copyUrl(assetId: string, url: string) {
+    await navigator.clipboard.writeText(url);
+    setCopiedId(assetId);
+    setTimeout(() => setCopiedId(null), 2000);
+  }
+
+  function handleFileUpload(assetId: string, file: File) {
+    setUploadingId(assetId);
+    setUploadProgress((p) => ({ ...p, [assetId]: 0 }));
+
+    const xhr = new XMLHttpRequest();
+    const fd = new FormData();
+    fd.append("file", file);
+
+    xhr.upload.onprogress = (e) => {
+      if (e.lengthComputable) {
+        const pct = Math.round((e.loaded / e.total) * 95);
+        setUploadProgress((p) => ({ ...p, [assetId]: pct }));
+      }
+    };
+
+    xhr.onload = () => {
+      setUploadProgress((p) => ({ ...p, [assetId]: 100 }));
+      if (xhr.status === 200) {
+        const data = JSON.parse(xhr.responseText) as { url?: string; type?: string; width?: number; height?: number; bytes?: number; error?: string };
+        if (data.error) {
+          toast.error(data.error);
+        } else {
+          updateAsset(assetId, {
+            url:    data.url!,
+            type:   data.type as "image" | "video",
+            width:  data.width,
+            height: data.height,
+            bytes:  data.bytes,
+          });
+          toast.success("تم رفع الملف");
+        }
+      } else {
+        toast.error("فشل الرفع");
+      }
+      setTimeout(() => {
+        setUploadingId(null);
+        setUploadProgress((p) => { const n = { ...p }; delete n[assetId]; return n; });
+      }, 800);
+    };
+
+    xhr.onerror = () => {
+      toast.error("فشل الرفع");
+      setUploadingId(null);
+      setUploadProgress((p) => { const n = { ...p }; delete n[assetId]; return n; });
+    };
+
+    xhr.open("POST", "/api/upload");
+    xhr.send(fd);
   }
 
   const isFullyLocked = entry.status === "جاهز للنشر" || entry.status === "تم النشر";
   const isReview      = entry.status === "جاهز للمراجعة";
   const isDone        = isReview || isFullyLocked;
-  const canSubmit     = assetLink.trim().length > 0;
+  const canSubmit     = assets.some((a) => a.url.trim().length > 0);
   const typeMeta      = entry.contentType ? CONTENT_TYPE_META[entry.contentType] : null;
   const TypeIcon      = typeMeta?.icon;
   const stageItems    = entry.customerStage.map((s) => STAGE_META[s]).filter(Boolean);
 
+  function addAsset() {
+    setAssets((prev) => [...prev, { id: crypto.randomUUID(), url: "", type: "video", label: entry.idea }]);
+  }
+
+  function removeAsset(id: string) {
+    setAssets((prev) => prev.filter((a) => a.id !== id));
+  }
+
+  function updateAsset(id: string, patch: Partial<AssetItem>) {
+    setAssets((prev) => prev.map((a) => a.id === id ? { ...a, ...patch } : a));
+  }
+
+  function cleanAssets(): AssetItem[] {
+    return assets.filter((a) => a.url.trim().length > 0);
+  }
+
   async function handleMarkReady() {
     setSaving(true);
     try {
-      await updateEntry(entry.id, { assetLink: assetLink.trim() || null });
+      const clean = cleanAssets();
+      await updateEntry(entry.id, { assets: clean, assetLink: clean[0]?.url ?? null });
       const result = await updateStatus(entry.id, "جاهز للمراجعة");
       if (result.success) {
         toast.success("تم تحديث الحالة إلى جاهز للمراجعة");
         void sendTelegramNotification(
-          `🎨 <b>جاهز للمراجعة</b>\n\n💡 <b>الفكرة:</b> ${entry.idea}\n📅 يوم ${entry.day}\n👤 العميل: ${slug}\n\nالكريتيف جاهز — يرجى المراجعة والموافقة.`
+          `🎨 <b>جاهز للمراجعة</b>\n\n💡 <b>الفكرة:</b> ${entry.idea}\n📅 يوم ${entry.day}\n👤 العميل: ${slug}\n\nالإبداع جاهز (${clean.length} ملف) — يرجى المراجعة والموافقة.`
         );
         window.location.href = `/clients/${slug}/calendar/${month}`;
       } else {
         toast.error(result.error);
-      }
-    } finally {
-      setSaving(false);
-    }
-  }
-
-  async function handleApprove() {
-    setSaving(true);
-    try {
-      const result = await updateStatus(entry.id, "جاهز للنشر");
-      if (result.success) {
-        toast.success("تمت الموافقة — جاهز للنشر");
-        void sendTelegramNotification(
-          `✅ <b>جاهز للنشر</b>\n\n💡 <b>الفكرة:</b> ${entry.idea}\n📅 يوم ${entry.day}\n👤 العميل: ${slug}\n\nتمت الموافقة على الكريتيف — جاهز للميديا باير.`
-        );
-        window.location.href = `/clients/${slug}/calendar/${month}`;
-      } else {
-        toast.error(result.error);
-      }
-    } finally {
-      setSaving(false);
-    }
-  }
-
-  async function handleUpdateLink() {
-    setSaving(true);
-    try {
-      const result = await updateEntry(entry.id, { assetLink: assetLink.trim() || null });
-      if (result.success) {
-        toast.success("تم تحديث الرابط");
-      } else {
-        toast.error(result.error ?? "حدث خطأ");
       }
     } finally {
       setSaving(false);
@@ -190,6 +239,17 @@ export function ProductionForm({ entry, slug, month }: Props): ReactElement {
         )}>
           <CheckCircle2 className="h-4 w-4 shrink-0" />
           هذا المنشور في مرحلة: <span className="font-bold">{entry.status}</span>
+        </div>
+      )}
+
+      {/* Rejection note banner */}
+      {entry.rejectionNote && (
+        <div className="flex items-start gap-2.5 rounded-2xl border border-red-200 bg-red-50 dark:border-red-800 dark:bg-red-950/30 px-4 py-3 text-sm">
+          <XCircle className="h-4 w-4 text-red-600 dark:text-red-400 shrink-0 mt-0.5" />
+          <div>
+            <p className="font-semibold text-red-700 dark:text-red-400">سبب الرفض</p>
+            <p className="text-red-600 dark:text-red-300 mt-0.5 whitespace-pre-wrap leading-relaxed">{entry.rejectionNote}</p>
+          </div>
         </div>
       )}
 
@@ -279,61 +339,166 @@ export function ProductionForm({ entry, slug, month }: Props): ReactElement {
         <Field label="ملحوظات للمصمم Notes" value={entry.notes} multiline />
       </Section>
 
+      {/* ── الإبداع ─────────────────────────────────────────────────── */}
+      <Section title="الإبداع">
+        <div className="space-y-3">
+          {assets.map((asset, idx) => (
+            <div key={asset.id} className="rounded-xl border border-border bg-muted/20 overflow-hidden">
+              {/* Asset preview (image/video) if uploaded to Cloudinary */}
+              {asset.url.trim() && isCloudinaryUrl(asset.url) && (
+                <div className="relative bg-black/5 border-b border-border">
+                  {asset.type === "image" ? (
+                    <img
+                      src={asset.url}
+                      alt={asset.label || `ملف ${idx + 1}`}
+                      className="w-full max-h-64 object-contain"
+                    />
+                  ) : (
+                    <video
+                      src={asset.url}
+                      controls
+                      className="w-full max-h-64"
+                      preload="metadata"
+                    />
+                  )}
+                </div>
+              )}
+
+              {/* Upload progress bar */}
+              {uploadingId === asset.id && (
+                <div className="px-3 pt-2.5 pb-1">
+                  <div className="flex items-center justify-between mb-1">
+                    <span className="text-[11px] font-medium text-primary">
+                      {uploadProgress[asset.id] === 100 ? "✓ اكتمل الرفع" : "جاري الرفع..."}
+                    </span>
+                    <span className="text-[11px] font-bold text-primary tabular-nums">
+                      {uploadProgress[asset.id] ?? 0}%
+                    </span>
+                  </div>
+                  <div className="h-1.5 rounded-full bg-muted overflow-hidden">
+                    <div
+                      className="h-full rounded-full bg-primary transition-all duration-300 ease-out"
+                      style={{ width: `${uploadProgress[asset.id] ?? 0}%` }}
+                    />
+                  </div>
+                </div>
+              )}
+
+              {/* Controls row */}
+              <div className="flex items-center gap-2 px-3 py-2.5">
+                {/* Type badge */}
+                <button
+                  type="button"
+                  disabled={isFullyLocked}
+                  onClick={() => updateAsset(asset.id, { type: asset.type === "video" ? "image" : "video" })}
+                  className={cn(
+                    "shrink-0 h-8 w-8 flex items-center justify-center rounded-lg border transition-colors",
+                    asset.type === "video"
+                      ? "border-primary/30 bg-primary/10 text-primary"
+                      : "border-emerald-300 bg-emerald-50 text-emerald-600",
+                    isFullyLocked && "opacity-50 cursor-not-allowed",
+                  )}
+                  title={asset.type === "video" ? "فيديو — اضغط للتغيير لصورة" : "صورة — اضغط للتغيير لفيديو"}
+                >
+                  {asset.type === "video" ? <Film className="h-3.5 w-3.5" /> : <ImageIcon className="h-3.5 w-3.5" />}
+                </button>
+
+                {/* Copy URL */}
+                {asset.url.trim() && (
+                  <button
+                    type="button"
+                    onClick={() => copyUrl(asset.id, asset.url)}
+                    className="shrink-0 h-8 w-8 flex items-center justify-center rounded-lg border border-border text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
+                    title="نسخ الرابط">
+                    {copiedId === asset.id
+                      ? <Check className="h-3.5 w-3.5 text-green-500" />
+                      : <Copy className="h-3.5 w-3.5" />}
+                  </button>
+                )}
+
+                {/* Label input */}
+                <Input
+                  dir="rtl"
+                  value={asset.label ?? ""}
+                  onChange={(e) => updateAsset(asset.id, { label: e.target.value })}
+                  placeholder="تسمية"
+                  className="h-8 text-xs flex-1 min-w-0"
+                  disabled={isFullyLocked}
+                />
+
+                {/* Upload button */}
+                {!isFullyLocked && (
+                  <label
+                    className={cn(
+                      "shrink-0 h-8 w-8 flex items-center justify-center rounded-lg border border-border text-muted-foreground hover:text-foreground hover:bg-muted transition-colors cursor-pointer",
+                      uploadingId === asset.id && "pointer-events-none opacity-60",
+                    )}
+                    title="رفع ملف">
+                    <input
+                      type="file"
+                      accept="image/*,video/*"
+                      className="hidden"
+                      onChange={(e) => {
+                        const file = e.target.files?.[0];
+                        if (file) handleFileUpload(asset.id, file);
+                        e.target.value = "";
+                      }}
+                    />
+                    {uploadingId === asset.id
+                      ? <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                      : <Upload className="h-3.5 w-3.5" />}
+                  </label>
+                )}
+
+
+                {/* Open link */}
+                {asset.url.trim() && (
+                  <a href={asset.url} target="_blank" rel="noopener noreferrer"
+                    className="shrink-0 h-8 w-8 flex items-center justify-center rounded-lg border border-border text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
+                    title="فتح">
+                    <ExternalLink className="h-3.5 w-3.5" />
+                  </a>
+                )}
+
+                {/* Remove */}
+                {!isFullyLocked && (
+                  <button
+                    type="button"
+                    onClick={() => removeAsset(asset.id)}
+                    className="shrink-0 h-8 w-8 flex items-center justify-center rounded-lg text-muted-foreground/50 hover:text-destructive hover:bg-destructive/10 transition-colors">
+                    <Trash2 className="h-3.5 w-3.5" />
+                  </button>
+                )}
+              </div>
+            </div>
+          ))}
+
+          {!isFullyLocked && (
+            <button
+              type="button"
+              onClick={addAsset}
+              className="flex w-full items-center justify-center gap-2 rounded-xl border border-dashed border-border py-2.5 text-sm text-muted-foreground hover:text-foreground hover:border-primary/40 hover:bg-muted/30 transition-colors">
+              <Plus className="h-4 w-4" />
+              إضافة ملف
+            </button>
+          )}
+
+          {assets.length === 0 && isFullyLocked && (
+            <p className="text-center text-sm text-muted-foreground/60 py-2">لا يوجد ملفات مرفقة</p>
+          )}
+
+          {!isFullyLocked && (
+            <p className="text-center text-[10px] text-muted-foreground/50 pt-1">
+              صور: JPG، PNG · فيديو: MP4، MOV · الحد الأقصى: 50MB
+            </p>
+          )}
+        </div>
+      </Section>
+
       {/* ── Fixed footer ─────────────────────────────────────────────── */}
       <div className="fixed bottom-0 left-0 right-0 z-10 px-6 py-3 bg-background/95 backdrop-blur-sm border-t border-border">
-        <div className="flex items-center gap-3 max-w-4xl mx-auto">
-          <div className="flex flex-1 items-center gap-2 min-w-0">
-            <Input
-              dir="ltr"
-              value={assetLink}
-              onChange={(e) => setAssetLink(e.target.value)}
-              placeholder="https://drive.google.com/... رابط الكريتيف الجاهز"
-              className="h-10 font-mono text-xs flex-1 min-w-0"
-              disabled={isFullyLocked}
-            />
-            {assetLink.trim() && getDriveEmbedUrl(assetLink) && (
-              <button
-                type="button"
-                onClick={() => setPreviewOpen(true)}
-                className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-border text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
-                title="معاينة الكريتيف">
-                <PlayCircle className="h-4 w-4" />
-              </button>
-            )}
-            {assetLink.trim() && (
-              <a href={assetLink} target="_blank" rel="noopener noreferrer"
-                className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-border text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
-                title="فتح في Drive">
-                <ExternalLink className="h-4 w-4" />
-              </a>
-            )}
-          </div>
-          {isReview ? (
-            <>
-              <Button
-                type="button"
-                disabled={saving || !canSubmit}
-                onClick={handleUpdateLink}
-                variant="outline"
-                className="shrink-0 h-10 font-semibold gap-2 px-5">
-                <CheckCircle2 className="h-4 w-4" />
-                {saving ? "جاري الحفظ..." : "تحديث الرابط"}
-              </Button>
-              <Button
-                type="button"
-                disabled={saving}
-                onClick={handleApprove}
-                className="shrink-0 h-10 font-semibold gap-2 px-5 bg-green-600 hover:bg-green-700 text-white">
-                <CheckCircle2 className="h-4 w-4" />
-                {saving ? "جاري الحفظ..." : "منح الموافقة — جاهز للنشر"}
-              </Button>
-            </>
-          ) : isFullyLocked ? (
-            <Button type="button" disabled className="shrink-0 h-10 font-semibold gap-2 px-5 opacity-60">
-              <CheckCircle2 className="h-4 w-4" />
-              {entry.status}
-            </Button>
-          ) : (
+        <div className="flex items-center gap-3 max-w-4xl mx-auto justify-end">
+          {!isReview && !isFullyLocked && (
             <Button
               type="button"
               disabled={saving || !canSubmit}
@@ -353,27 +518,22 @@ export function ProductionForm({ entry, slug, month }: Props): ReactElement {
     </div>
 
     {/* ── Creative Preview Modal ── */}
-    <Dialog open={previewOpen} onOpenChange={setPreviewOpen}>
+    <Dialog open={!!previewAsset} onOpenChange={(o) => { if (!o) setPreviewAsset(null); }}>
       <DialogContent className="sm:max-w-3xl p-0 overflow-hidden gap-0">
-        <DialogHeader className="px-4 py-3 border-b border-border">
+        <DialogHeader className="px-4 py-3 border-b border-border flex flex-row items-center justify-between">
           <DialogTitle className="text-sm font-semibold" dir="rtl">
-            معاينة الكريتيف — {entry.idea}
+            {previewAsset?.label || `ملف ${assets.findIndex((a) => a.id === previewAsset?.id) + 1}`} — {entry.idea}
           </DialogTitle>
+          <button onClick={() => setPreviewAsset(null)} className="text-muted-foreground hover:text-foreground transition-colors p-1 rounded-md hover:bg-muted">✕</button>
         </DialogHeader>
-        {assetLink && getDriveEmbedUrl(assetLink) && (
-          <iframe
-            src={getDriveEmbedUrl(assetLink)!}
-            className="w-full"
-            style={{ height: "70vh", border: "none" }}
-            allow="autoplay"
-          />
-        )}
         <div className="px-4 py-2 border-t border-border flex justify-end">
-          <a href={assetLink} target="_blank" rel="noopener noreferrer"
-            className="inline-flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground transition-colors">
-            <ExternalLink className="h-3.5 w-3.5" />
-            فتح في Drive
-          </a>
+          {previewAsset && (
+            <a href={previewAsset.url} target="_blank" rel="noopener noreferrer"
+              className="inline-flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground transition-colors">
+              <ExternalLink className="h-3.5 w-3.5" />
+              فتح
+            </a>
+          )}
         </div>
       </DialogContent>
     </Dialog>

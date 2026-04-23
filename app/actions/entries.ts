@@ -6,6 +6,16 @@ import { z } from "zod";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
+export type AssetItem = {
+  id: string;
+  url: string;
+  type: "image" | "video";
+  label?: string;
+  width?: number;
+  height?: number;
+  bytes?: number;
+};
+
 export type EntryListItem = {
   id:         string;
   clientId:   string | null;
@@ -35,7 +45,9 @@ export type EntryListItem = {
   notes:         string | null;
 
   // الإنتاج
-  assetLink: string | null;
+  assetLink:     string | null;
+  assets:        AssetItem[] | null;
+  rejectionNote: string | null;
 
   // الميديا باير
   orgPaid:       string | null;
@@ -80,6 +92,12 @@ const entrySchema = z.object({
 
   // الإنتاج
   assetLink: z.string().nullable().optional(),
+  assets: z.array(z.object({
+    id:    z.string(),
+    url:   z.string(),
+    type:  z.enum(["image", "video"]),
+    label: z.string().optional(),
+  })).nullable().optional(),
 
   // الميديا باير
   orgPaid:       z.string().nullable().optional(),
@@ -103,7 +121,7 @@ export async function getEntriesByMonth(
     where: clientId ? { month, clientId } : { month },
     orderBy: [{ day: "asc" }, { createdAt: "asc" }],
   });
-  return rows as unknown as EntryListItem[];
+  return rows.filter((r) => r.archived !== true) as unknown as EntryListItem[];
 }
 
 export async function getEntryById(id: string): Promise<EntryListItem | null> {
@@ -120,10 +138,11 @@ export async function getAllMonthCounts(
 ): Promise<Record<string, number>> {
   const rows = await prisma.contentEntry.findMany({
     where: clientId ? { clientId } : undefined,
-    select: { month: true },
+    select: { month: true, archived: true },
   });
   const counts: Record<string, number> = {};
   for (const row of rows) {
+    if (row.archived === true) continue;
     counts[row.month] = (counts[row.month] ?? 0) + 1;
   }
   return counts;
@@ -139,10 +158,11 @@ export async function getMonthStats(
   inProduction: number;
   readyToPublish: number;
 }> {
-  const rows = await prisma.contentEntry.findMany({
+  const allRows = await prisma.contentEntry.findMany({
     where: clientId ? { month, clientId } : { month },
-    select: { status: true },
+    select: { status: true, archived: true },
   });
+  const rows = allRows.filter((r) => r.archived !== true);
   return {
     total:          rows.length,
     published:      rows.filter((r) => r.status === "تم النشر").length,
@@ -162,13 +182,14 @@ export async function getAllStats(
 }> {
   const rows = await prisma.contentEntry.findMany({
     where: clientId ? { clientId } : {},
-    select: { status: true },
+    select: { status: true, archived: true },
   });
+  const active = rows.filter((r) => r.archived !== true);
   return {
-    total:          rows.length,
-    published:      rows.filter((r) => r.status === "تم النشر").length,
-    pending:        rows.filter((r) => r.status === "قيد الإنتاج").length,
-    readyToPublish: rows.filter((r) => r.status === "جاهز للنشر").length,
+    total:          active.length,
+    published:      active.filter((r) => r.status === "تم النشر").length,
+    pending:        active.filter((r) => r.status === "قيد الإنتاج").length,
+    readyToPublish: active.filter((r) => r.status === "جاهز للنشر").length,
   };
 }
 
@@ -242,15 +263,109 @@ export async function updateStatus(
   }
 }
 
-// ─── DELETE ───────────────────────────────────────────────────────────────────
+// ─── GALLERY ─────────────────────────────────────────────────────────────────
 
-export async function deleteEntry(id: string): Promise<ActionResult> {
+export type GalleryEntry = {
+  id:     string;
+  month:  string;
+  day:    number;
+  idea:   string;
+  status: string;
+  assets: AssetItem[];
+};
+
+export async function getEntriesWithAssets(
+  clientId: string,
+): Promise<GalleryEntry[]> {
+  const rows = await prisma.contentEntry.findMany({
+    where: { clientId },
+    orderBy: [{ month: "asc" }, { day: "asc" }],
+    select: {
+      id:        true,
+      month:     true,
+      day:       true,
+      idea:      true,
+      status:    true,
+      assets:    true,
+      assetLink: true,
+    },
+  });
+
+  const results: GalleryEntry[] = [];
+  for (const row of rows) {
+    let assets: AssetItem[] = [];
+    if (row.assets && (row.assets as AssetItem[]).length > 0) {
+      assets = (row.assets as AssetItem[]).filter((a) =>
+        a.url.includes("res.cloudinary.com"),
+      );
+    } else if (row.assetLink && row.assetLink.includes("res.cloudinary.com")) {
+      assets = [{ id: "legacy", url: row.assetLink, type: "video" }];
+    }
+    if (assets.length > 0) {
+      results.push({
+        id:     row.id,
+        month:  row.month,
+        day:    row.day,
+        idea:   row.idea,
+        status: row.status,
+        assets,
+      });
+    }
+  }
+  return results;
+}
+
+// ─── REJECT ───────────────────────────────────────────────────────────────────
+
+export async function rejectEntry(
+  id: string,
+  note: string,
+): Promise<ActionResult> {
   if (!id) return { success: false, error: "معرّف غير صالح" };
   try {
-    await prisma.contentEntry.delete({ where: { id } });
+    await prisma.contentEntry.update({
+      where: { id },
+      data: {
+        status:          "قيد الإنتاج",
+        statusUpdatedAt: new Date(),
+        rejectionNote:   note.trim() || null,
+      },
+    });
     revalidatePath("/", "layout");
     return { success: true };
   } catch {
-    return { success: false, error: "حدث خطأ عند الحذف" };
+    return { success: false, error: "حدث خطأ عند الرفض" };
   }
+}
+
+// ─── ARCHIVE / UNARCHIVE ──────────────────────────────────────────────────────
+
+export async function archiveEntry(id: string): Promise<ActionResult> {
+  if (!id) return { success: false, error: "معرّف غير صالح" };
+  try {
+    await prisma.contentEntry.update({ where: { id }, data: { archived: true } });
+    revalidatePath("/", "layout");
+    return { success: true };
+  } catch {
+    return { success: false, error: "حدث خطأ عند الأرشفة" };
+  }
+}
+
+export async function unarchiveEntry(id: string): Promise<ActionResult> {
+  if (!id) return { success: false, error: "معرّف غير صالح" };
+  try {
+    await prisma.contentEntry.update({ where: { id }, data: { archived: false } });
+    revalidatePath("/", "layout");
+    return { success: true };
+  } catch {
+    return { success: false, error: "حدث خطأ عند الاسترجاع" };
+  }
+}
+
+export async function getArchivedEntries(clientId: string): Promise<EntryListItem[]> {
+  const rows = await prisma.contentEntry.findMany({
+    where: { clientId, archived: true },
+    orderBy: [{ updatedAt: "desc" }],
+  });
+  return rows as unknown as EntryListItem[];
 }

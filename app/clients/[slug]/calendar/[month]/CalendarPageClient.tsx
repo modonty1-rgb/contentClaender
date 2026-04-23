@@ -5,7 +5,7 @@ import { useCallback, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "@/app/components/ui/sonner";
 import { CalendarTable } from "./CalendarTable";
-import { deleteEntry, getEntriesByMonth } from "@/app/actions/entries";
+import { archiveEntry, getEntriesByMonth } from "@/app/actions/entries";
 import type { EntryListItem } from "@/app/actions/entries";
 import type { MonthValue } from "@/lib/constants";
 
@@ -37,9 +37,9 @@ export function CalendarPageClient({
   }, [month, clientId, router]);
 
   const handleDelete = async (id: string): Promise<void> => {
-    const result = await deleteEntry(id);
+    const result = await archiveEntry(id);
     if (result.success) {
-      toast.success("تم حذف المحتوى");
+      toast.success("تمت الأرشفة");
       reload();
     } else {
       toast.error(result.error);
