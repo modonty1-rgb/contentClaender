@@ -338,6 +338,19 @@ export async function rejectEntry(
   }
 }
 
+// ─── DELETE ───────────────────────────────────────────────────────────────────
+
+export async function deleteEntry(id: string): Promise<ActionResult> {
+  if (!id) return { success: false, error: "معرّف غير صالح" };
+  try {
+    await prisma.contentEntry.delete({ where: { id } });
+    revalidatePath("/", "layout");
+    return { success: true };
+  } catch {
+    return { success: false, error: "حدث خطأ عند الحذف" };
+  }
+}
+
 // ─── ARCHIVE / UNARCHIVE ──────────────────────────────────────────────────────
 
 export async function archiveEntry(id: string): Promise<ActionResult> {
