@@ -14,7 +14,7 @@ export async function downloadWithProgress(
   const total = contentLength ? parseInt(contentLength, 10) : 0;
 
   const reader = res.body.getReader();
-  const chunks: Uint8Array[] = [];
+  const chunks: Uint8Array<ArrayBuffer>[] = [];
   let received = 0;
 
   while (true) {

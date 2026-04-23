@@ -561,7 +561,7 @@ export type CalendarTableProps = {
 };
 
 export function CalendarTable({
-  entries, slug, month, loading, onDelete, onReload,
+  entries, slug, month, monthLabel, loading, onDelete, onReload,
 }: CalendarTableProps): ReactElement {
   const [deleteTargetId, setDeleteTargetId] = useState<string | null>(null);
   const [filterStatus, setFilterStatus] = useState<string>("الكل");
