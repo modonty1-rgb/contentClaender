@@ -17,6 +17,8 @@ export const metadata: Metadata = {
   description: "إدارة محتوى JBR SEO",
 };
 
+export const dynamic = "force-dynamic";
+
 export default function RootLayout({ children }: { children: ReactNode }) {
   return (
     <html lang="ar" dir="rtl" className={tajawal.variable} suppressHydrationWarning>
