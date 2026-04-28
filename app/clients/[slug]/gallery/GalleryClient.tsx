@@ -1,12 +1,27 @@
 "use client";
 
-import { useState, useMemo, useCallback } from "react";
+import { useState, useMemo, useCallback, useTransition } from "react";
 import Link from "next/link";
+import Image from "next/image";
+import { useRouter } from "next/navigation";
+import { toast } from "@/app/components/ui/sonner";
+import { deleteAsset } from "@/app/actions/entries";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/app/components/ui/dialog";
-import { X, ImageIcon, Film, ChevronLeft, ChevronRight, Upload, Download, Loader2 } from "lucide-react";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/app/components/ui/alert-dialog";
+import { X, ImageIcon, Film, ChevronLeft, ChevronRight, Upload, Download, Loader2, Trash2 } from "lucide-react";
 import { MONTHS } from "@/lib/constants";
 import type { GalleryEntry, AssetItem } from "@/app/actions/entries";
 import { downloadWithProgress } from "@/lib/download-with-progress";
+import { optimizeCloudinaryUrl } from "@/lib/cloudinary-url";
 
 // ─── Status badge config ──────────────────────────────────────────────────────
 
@@ -52,11 +67,13 @@ function AssetThumb({ asset, onClick }: { asset: AssetItem; onClick: () => void 
       className="relative w-full aspect-square overflow-hidden rounded-xl border border-border bg-muted/40 hover:border-primary/50 hover:shadow-md transition-all group"
     >
       {asset.type === "image" ? (
-        // eslint-disable-next-line @next/next/no-img-element
-        <img
-          src={asset.url}
+        <Image
+          src={optimizeCloudinaryUrl(asset.url, { width: 500 })}
           alt={asset.label ?? ""}
-          className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+          fill
+          sizes="(max-width: 640px) 50vw, (max-width: 1024px) 33vw, 250px"
+          unoptimized
+          className="object-cover group-hover:scale-105 transition-transform duration-300"
         />
       ) : (
         <video
@@ -90,6 +107,9 @@ export function GalleryClient({ entries, slug }: { entries: GalleryEntry[]; slug
   const [filters, setFilters] = useState<Filters>({ month: "all", type: "all", status: "all" });
   const [preview, setPreview] = useState<PreviewState | null>(null);
   const [dlProgress, setDlProgress] = useState<number | null>(null);
+  const [confirmDelete, setConfirmDelete] = useState(false);
+  const [isDeleting, startDeleting] = useTransition();
+  const router = useRouter();
 
   const handleDownload = useCallback(async (asset: AssetItem, entryIdea: string) => {
     if (dlProgress !== null) return;
@@ -315,6 +335,16 @@ export function GalleryClient({ entries, slug }: { entries: GalleryEntry[]; slug
                   </span>
                 </button>
               )}
+              {previewActive && preview && (preview.entry.status === "قيد الإنتاج" || preview.entry.status === "جاهز للمراجعة") && (
+                <button
+                  type="button"
+                  onClick={() => setConfirmDelete(true)}
+                  className="h-7 px-2.5 rounded-md flex items-center gap-1.5 text-xs bg-red-50 text-red-700 border border-red-200 hover:bg-red-100 dark:bg-red-950/30 dark:text-red-400 dark:border-red-800 dark:hover:bg-red-950/50 transition-colors"
+                >
+                  <Trash2 className="h-3.5 w-3.5" />
+                  حذف
+                </button>
+              )}
               <span className="text-[11px] text-muted-foreground tabular-nums">
                 {previewPos} / {filtered.length}
               </span>
@@ -346,11 +376,13 @@ export function GalleryClient({ entries, slug }: { entries: GalleryEntry[]; slug
 
           <div className="flex items-center justify-center bg-black/5 dark:bg-black/30 min-h-[50vh] max-h-[75vh] overflow-hidden p-3">
             {previewActive?.type === "image" ? (
-              // eslint-disable-next-line @next/next/no-img-element
-              <img
-                src={previewActive.url}
+              <Image
+                src={optimizeCloudinaryUrl(previewActive.url, { width: 1400 })}
                 alt={previewActive.label ?? ""}
-                className="max-w-full max-h-[70vh] object-contain rounded-lg shadow-lg"
+                width={previewActive.width || 1400}
+                height={previewActive.height || 1400}
+                unoptimized
+                className="max-w-full max-h-[70vh] object-contain rounded-lg shadow-lg w-auto h-auto"
               />
             ) : previewActive ? (
               <video
@@ -388,8 +420,7 @@ export function GalleryClient({ entries, slug }: { entries: GalleryEntry[]; slug
                   }`}
                 >
                   {a.type === "image" ? (
-                    // eslint-disable-next-line @next/next/no-img-element
-                    <img src={a.url} alt="" className="w-full h-full object-cover" />
+                    <Image src={optimizeCloudinaryUrl(a.url, { width: 100 })} alt="" fill sizes="48px" unoptimized className="object-cover" />
                   ) : (
                     <video src={a.url} className="w-full h-full object-cover" muted preload="metadata" />
                   )}
@@ -399,6 +430,48 @@ export function GalleryClient({ entries, slug }: { entries: GalleryEntry[]; slug
           )}
         </DialogContent>
       </Dialog>
+
+      <AlertDialog open={confirmDelete} onOpenChange={setConfirmDelete}>
+        <AlertDialogContent dir="rtl">
+          <AlertDialogHeader>
+            <AlertDialogTitle>حذف الإبداع؟</AlertDialogTitle>
+            <AlertDialogDescription>
+              سيتم حذف هذا الملف نهائياً من المعرض ومن Cloudinary. لا يمكن التراجع.
+              {previewActive?.label && (
+                <span className="block mt-2 text-foreground font-semibold">
+                  {previewActive.label}
+                </span>
+              )}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={isDeleting}>إلغاء</AlertDialogCancel>
+            <AlertDialogAction
+              disabled={isDeleting}
+              onClick={(e) => {
+                e.preventDefault();
+                if (!preview || !previewActive) return;
+                const entryId = preview.entry.id;
+                const assetId = previewActive.id;
+                startDeleting(async () => {
+                  const r = await deleteAsset(entryId, assetId);
+                  if (r.success) {
+                    toast.success("تم حذف الإبداع");
+                    setConfirmDelete(false);
+                    setPreview(null);
+                    router.refresh();
+                  } else {
+                    toast.error(r.error);
+                  }
+                });
+              }}
+              className="bg-red-600 hover:bg-red-700 text-white"
+            >
+              {isDeleting ? "جاري الحذف..." : "نعم، احذف"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }

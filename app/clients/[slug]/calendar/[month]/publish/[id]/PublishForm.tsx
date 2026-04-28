@@ -3,6 +3,8 @@
 import type { ReactElement } from "react";
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import Image from "next/image";
+import { optimizeCloudinaryUrl } from "@/lib/cloudinary-url";
 import { ExternalLink, CheckCircle2, Send, Download, Loader2 } from "lucide-react";
 import { Button } from "@/app/components/ui/button";
 import { Input } from "@/app/components/ui/input";
@@ -172,10 +174,13 @@ export function PublishForm({ entry, slug, month }: Props): ReactElement {
                 <div key={a.id} className="rounded-xl border border-border overflow-hidden shadow-sm">
                   {/* Preview */}
                   {a.type === "image" ? (
-                    <img
-                      src={a.url}
+                    <Image
+                      src={optimizeCloudinaryUrl(a.url, { width: 1000 })}
                       alt={a.label || `ملف ${i + 1}`}
-                      className="w-full max-h-[420px] object-contain bg-black/5"
+                      width={1000}
+                      height={1000}
+                      unoptimized
+                      className="w-full max-h-[420px] object-contain bg-black/5 h-auto"
                     />
                   ) : (
                     <video

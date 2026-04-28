@@ -3,6 +3,19 @@
 import { prisma } from "@/lib/prisma";
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
+import { v2 as cloudinary } from "cloudinary";
+
+cloudinary.config({
+  cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
+  api_key:    process.env.CLOUDINARY_API_KEY,
+  api_secret: process.env.CLOUDINARY_API_SECRET,
+});
+
+function extractCloudinaryPublicId(url: string): { publicId: string; resourceType: "image" | "video" } | null {
+  const m = url.match(/\/(image|video)\/upload\/(?:v\d+\/)?(.+?)(?:\.[^.]+)?$/);
+  if (!m) return null;
+  return { resourceType: m[1] as "image" | "video", publicId: m[2] };
+}
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -335,6 +348,58 @@ export async function rejectEntry(
     return { success: true };
   } catch {
     return { success: false, error: "حدث خطأ عند الرفض" };
+  }
+}
+
+// ─── DELETE ASSET ─────────────────────────────────────────────────────────────
+
+export async function deleteAsset(entryId: string, assetId: string): Promise<ActionResult> {
+  if (!entryId || !assetId) return { success: false, error: "معرّف غير صالح" };
+
+  try {
+    const entry = await prisma.contentEntry.findUnique({ where: { id: entryId } });
+    if (!entry) return { success: false, error: "المنشور غير موجود" };
+
+    if (entry.status === "جاهز للنشر" || entry.status === "تم النشر") {
+      return { success: false, error: "لا يمكن حذف الإبداع في هذه المرحلة. ارفض الكريتيف أولاً للرجوع لمرحلة الإنتاج." };
+    }
+
+    const assets = (entry.assets as AssetItem[] | null) ?? [];
+    const target = assets.find((a) => a.id === assetId);
+    if (!target) return { success: false, error: "الملف غير موجود" };
+
+    const remaining = assets.filter((a) => a.id !== assetId);
+
+    // Delete from Cloudinary
+    const ext = extractCloudinaryPublicId(target.url);
+    if (ext) {
+      try {
+        await cloudinary.uploader.destroy(ext.publicId, { resource_type: ext.resourceType });
+      } catch (e) {
+        console.error("Cloudinary destroy failed:", e);
+      }
+    }
+
+    // Auto-revert status if removing the last asset from review stage
+    const newStatus = remaining.length === 0 && entry.status === "جاهز للمراجعة"
+      ? "قيد الإنتاج"
+      : entry.status;
+
+    await prisma.contentEntry.update({
+      where: { id: entryId },
+      data: {
+        assets: remaining as object[],
+        assetLink: remaining[0]?.url ?? null,
+        status: newStatus,
+        statusUpdatedAt: newStatus !== entry.status ? new Date() : entry.statusUpdatedAt,
+      },
+    });
+
+    revalidatePath("/", "layout");
+    return { success: true };
+  } catch (e) {
+    console.error("deleteAsset error:", e);
+    return { success: false, error: "حدث خطأ غير متوقع عند الحذف" };
   }
 }
 

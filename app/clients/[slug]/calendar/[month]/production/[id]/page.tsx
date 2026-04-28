@@ -6,6 +6,7 @@ import { getClientBySlug } from "@/app/actions/clients";
 import { MONTHS } from "@/lib/constants";
 import type { MonthValue } from "@/lib/constants";
 import { ProductionForm } from "./ProductionForm";
+import { UploadTipsCard } from "./UploadTipsCard";
 import { ModeToggle } from "@/app/components/mode-toggle";
 
 type Props = { params: Promise<{ slug: string; month: string; id: string }> };
@@ -37,7 +38,7 @@ export default async function ProductionPage({ params }: Props) {
           <span className="text-muted-foreground">/</span>
           <div className="flex items-center gap-2 min-w-0">
             <span className="rounded-full bg-amber-100 text-amber-700 border border-amber-200 px-2.5 py-0.5 text-[11px] font-semibold shrink-0">
-              إنتاج
+              صفحة الـ Creative
             </span>
             <h1 className="text-sm font-semibold text-foreground truncate">
               يوم {entry.day} — {entry.idea || "بدون فكرة"}
@@ -52,12 +53,15 @@ export default async function ProductionPage({ params }: Props) {
         </div>
       </header>
 
-      <main className="mx-auto max-w-4xl p-4 pt-6">
-        <ProductionForm
-          entry={entry}
-          slug={slug}
-          month={month as MonthValue}
-        />
+      <main className="mx-auto max-w-6xl p-4 pt-6">
+        <div className="grid grid-cols-1 lg:grid-cols-[1fr_280px] gap-5 items-start">
+          <ProductionForm
+            entry={entry}
+            slug={slug}
+            month={month as MonthValue}
+          />
+          <UploadTipsCard />
+        </div>
       </main>
     </div>
   );

@@ -3,6 +3,7 @@
 import type { ReactElement, ReactNode } from "react";
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import Image from "next/image";
 import { ExternalLink, CheckCircle2, Link2, AlertCircle, Plus, Trash2, Film, ImageIcon, Upload, Loader2, Copy, Check, XCircle } from "lucide-react";
 import {
   FaVideo, FaLayerGroup, FaImage, FaMobileScreen, FaClapperboard,
@@ -12,6 +13,7 @@ import { Button } from "@/app/components/ui/button";
 import { Input } from "@/app/components/ui/input";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/app/components/ui/dialog";
 import { cn } from "@/lib/utils";
+import { optimizeCloudinaryUrl } from "@/lib/cloudinary-url";
 import { toast } from "@/app/components/ui/sonner";
 import { updateEntry, updateStatus } from "@/app/actions/entries";
 import { sendTelegramNotification } from "@/app/actions/telegram";
@@ -131,54 +133,91 @@ export function ProductionForm({ entry, slug, month }: Props): ReactElement {
     setTimeout(() => setCopiedId(null), 2000);
   }
 
-  function handleFileUpload(assetId: string, file: File) {
+  async function handleFileUpload(assetId: string, file: File) {
+    const isVideo = file.type.startsWith("video/");
+    const MB = 1024 * 1024;
+    const limit = isVideo ? 100 * MB : 10 * MB;
+
+    if (file.size > limit) {
+      const sizeMB = (file.size / MB).toFixed(1);
+      const limitMB = isVideo ? 100 : 10;
+      toast.error(`حجم الملف ${sizeMB}MB أكبر من الحد المسموح (${limitMB}MB ${isVideo ? "للفيديو" : "للصور"}). اختر ملف أصغر.`);
+      return;
+    }
+
     setUploadingId(assetId);
     setUploadProgress((p) => ({ ...p, [assetId]: 0 }));
 
-    const xhr = new XMLHttpRequest();
-    const fd = new FormData();
-    fd.append("file", file);
-
-    xhr.upload.onprogress = (e) => {
-      if (e.lengthComputable) {
-        const pct = Math.round((e.loaded / e.total) * 95);
-        setUploadProgress((p) => ({ ...p, [assetId]: pct }));
-      }
-    };
-
-    xhr.onload = () => {
-      setUploadProgress((p) => ({ ...p, [assetId]: 100 }));
-      if (xhr.status === 200) {
-        const data = JSON.parse(xhr.responseText) as { url?: string; type?: string; width?: number; height?: number; bytes?: number; error?: string };
-        if (data.error) {
-          toast.error(data.error);
-        } else {
-          updateAsset(assetId, {
-            url:    data.url!,
-            type:   data.type as "image" | "video",
-            width:  data.width,
-            height: data.height,
-            bytes:  data.bytes,
-          });
-          toast.success("تم رفع الملف");
-        }
-      } else {
-        toast.error("فشل الرفع");
-      }
+    const cleanup = (): void => {
       setTimeout(() => {
         setUploadingId(null);
         setUploadProgress((p) => { const n = { ...p }; delete n[assetId]; return n; });
       }, 800);
     };
 
-    xhr.onerror = () => {
-      toast.error("فشل الرفع");
-      setUploadingId(null);
-      setUploadProgress((p) => { const n = { ...p }; delete n[assetId]; return n; });
-    };
+    try {
+      // 1) Get a signed signature from our API
+      const sigRes = await fetch("/api/upload-signature", { method: "POST" });
+      if (!sigRes.ok) {
+        toast.error("فشل التحقق من الصلاحيات. تأكد من إعدادات Cloudinary.");
+        cleanup();
+        return;
+      }
+      const { signature, timestamp, folder, apiKey, cloudName } = await sigRes.json();
 
-    xhr.open("POST", "/api/upload");
-    xhr.send(fd);
+      // 2) Upload directly to Cloudinary (bypasses Vercel 4.5MB limit)
+      const fd = new FormData();
+      fd.append("file", file);
+      fd.append("api_key", apiKey);
+      fd.append("timestamp", String(timestamp));
+      fd.append("signature", signature);
+      fd.append("folder", folder);
+
+      const resourceType = isVideo ? "video" : "image";
+      const cloudUrl = `https://api.cloudinary.com/v1_1/${cloudName}/${resourceType}/upload`;
+
+      const xhr = new XMLHttpRequest();
+      xhr.upload.onprogress = (e) => {
+        if (e.lengthComputable) {
+          const pct = Math.round((e.loaded / e.total) * 95);
+          setUploadProgress((p) => ({ ...p, [assetId]: pct }));
+        }
+      };
+
+      xhr.onload = () => {
+        setUploadProgress((p) => ({ ...p, [assetId]: 100 }));
+        if (xhr.status === 200) {
+          const data = JSON.parse(xhr.responseText) as { secure_url: string; width?: number; height?: number; bytes?: number };
+          updateAsset(assetId, {
+            url:    data.secure_url,
+            type:   resourceType,
+            width:  data.width,
+            height: data.height,
+            bytes:  data.bytes,
+          });
+          toast.success("تم رفع الملف");
+        } else {
+          let msg = `فشل الرفع (HTTP ${xhr.status})`;
+          try {
+            const err = JSON.parse(xhr.responseText) as { error?: { message?: string } };
+            if (err.error?.message) msg = `Cloudinary: ${err.error.message}`;
+          } catch {}
+          toast.error(msg);
+        }
+        cleanup();
+      };
+
+      xhr.onerror = () => {
+        toast.error("فشل الاتصال أثناء الرفع. تحقق من الإنترنت وحاول مرة أخرى.");
+        cleanup();
+      };
+
+      xhr.open("POST", cloudUrl);
+      xhr.send(fd);
+    } catch (e) {
+      toast.error(`خطأ غير متوقع: ${(e as Error).message}`);
+      cleanup();
+    }
   }
 
   const isFullyLocked = entry.status === "جاهز للنشر" || entry.status === "تم النشر";
@@ -348,10 +387,13 @@ export function ProductionForm({ entry, slug, month }: Props): ReactElement {
               {asset.url.trim() && isCloudinaryUrl(asset.url) && (
                 <div className="relative bg-black/5 border-b border-border">
                   {asset.type === "image" ? (
-                    <img
-                      src={asset.url}
+                    <Image
+                      src={optimizeCloudinaryUrl(asset.url, { width: 800 })}
                       alt={asset.label || `ملف ${idx + 1}`}
-                      className="w-full max-h-64 object-contain"
+                      width={asset.width || 800}
+                      height={asset.height || 800}
+                      unoptimized
+                      className="w-full max-h-64 object-contain h-auto"
                     />
                   ) : (
                     <video
@@ -487,11 +529,6 @@ export function ProductionForm({ entry, slug, month }: Props): ReactElement {
             <p className="text-center text-sm text-muted-foreground/60 py-2">لا يوجد ملفات مرفقة</p>
           )}
 
-          {!isFullyLocked && (
-            <p className="text-center text-[10px] text-muted-foreground/50 pt-1">
-              صور: JPG، PNG · فيديو: MP4، MOV · الحد الأقصى: 50MB
-            </p>
-          )}
         </div>
       </Section>
 
