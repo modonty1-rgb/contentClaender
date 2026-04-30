@@ -32,6 +32,7 @@ export default async function NewEntryPage({ params }: Props) {
   const defaultDay = today.getMonth() === MONTH_INDEX[month] ? today.getDate() : 1;
 
   const defaultValues: EntryPageFormData = {
+    month: month as MonthValue,
     day: defaultDay, idea: "", customerStage: [], contentType: "",
     channels: [], text: "", hook: "", cta: "",
     script: "", voiceTone: "", inspiration: "", notes: "",

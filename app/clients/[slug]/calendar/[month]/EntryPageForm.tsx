@@ -30,6 +30,7 @@ import type { MonthValue } from "@/lib/constants";
 // ─── Types ────────────────────────────────────────────────────────────────────
 
 export type EntryPageFormData = {
+  month:         MonthValue;
   day:           number;
   idea:          string;
   customerStage: string[];
@@ -44,8 +45,8 @@ export type EntryPageFormData = {
   notes:         string;
 };
 
-export const EMPTY_FORM = (day = 1): EntryPageFormData => ({
-  day, idea: "", customerStage: [], contentType: "",
+export const EMPTY_FORM = (month: MonthValue, day = 1): EntryPageFormData => ({
+  month, day, idea: "", customerStage: [], contentType: "",
   channels: [], text: "", hook: "", cta: "",
   script: "", voiceTone: "", inspiration: "", notes: "",
 });
@@ -418,14 +419,17 @@ export function EntryPageForm({ mode, entryId, slug, clientId, month, defaultVal
         if (result.success) { saved = true; toast.success("تم إضافة المنشور بنجاح"); }
         else toast.error(result.error);
       } else {
-        const result = await updateEntry(entryId!, fields);
-        if (result.success) { saved = true; toast.success("تم حفظ التعديلات"); }
-        else toast.error(result.error);
+        const monthChanged = data.month !== month;
+        const result = await updateEntry(entryId!, monthChanged ? { ...fields, month: data.month } : fields);
+        if (result.success) {
+          saved = true;
+          toast.success(monthChanged ? `تم نقل المنشور إلى ${MONTHS.find((m) => m.value === data.month)?.label}` : "تم حفظ التعديلات");
+        } else toast.error(result.error);
       }
 
       if (saved) {
         if (notifyTelegram) {
-          const monthLabel = MONTHS.find((m) => m.value === month)?.label ?? month;
+          const monthLabel = MONTHS.find((m) => m.value === data.month)?.label ?? data.month;
           const typeLabel  = data.contentType ? CONTENT_TYPE_META[data.contentType]?.label : null;
           const stageLabels = data.customerStage.map((s) => STAGE_META[s]?.label).filter(Boolean).join("، ");
           const msg = [
@@ -440,7 +444,7 @@ export function EntryPageForm({ mode, entryId, slug, clientId, month, defaultVal
           ].filter(Boolean).join("\n");
           await sendTelegramNotification(msg);
         }
-        router.push(`/clients/${slug}/calendar/${month}`);
+        router.push(`/clients/${slug}/calendar/${data.month}`);
       }
     } finally {
       setSaving(false);
@@ -455,8 +459,25 @@ export function EntryPageForm({ mode, entryId, slug, clientId, month, defaultVal
 
         {/* RIGHT sidebar — اليوم (full column) */}
         <div className="lg:sticky lg:top-20 order-2 lg:order-1 space-y-4">
-          <SidebarCard detail={dayDetail(data.day, month)}>
-            <DayCalendar month={month} mode={mode} value={data.day} entryDays={entryDays} onChange={(d) => set("day", d)} />
+          <SidebarCard detail={dayDetail(data.day, data.month)}>
+            {mode === "edit" && (
+              <div className="px-1 pb-2">
+                <select
+                  value={data.month}
+                  onChange={(e) => {
+                    const newMonth = e.target.value as MonthValue;
+                    const maxDay = DAYS_IN_MONTH[newMonth];
+                    setData((prev) => ({ ...prev, month: newMonth, day: Math.min(prev.day, maxDay) }));
+                  }}
+                  className="w-full h-9 rounded-md border border-border bg-background px-2 text-xs font-semibold text-foreground hover:border-primary/50 focus:outline-none focus:ring-2 focus:ring-primary/30"
+                >
+                  {MONTHS.map((m) => (
+                    <option key={m.value} value={m.value}>{m.label}</option>
+                  ))}
+                </select>
+              </div>
+            )}
+            <DayCalendar month={data.month} mode={mode} value={data.day} entryDays={data.month === month ? entryDays : []} onChange={(d) => set("day", d)} />
           </SidebarCard>
         </div>
 

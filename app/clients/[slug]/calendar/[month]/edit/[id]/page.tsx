@@ -27,6 +27,7 @@ export default async function EditEntryPage({ params }: Props) {
   const entryDays = [...new Set(entries.map((e) => e.day))];
 
   const defaultValues: EntryPageFormData = {
+    month:         month as MonthValue,
     day:           entry.day,
     idea:          entry.idea ?? "",
     customerStage: entry.customerStage ?? [],
