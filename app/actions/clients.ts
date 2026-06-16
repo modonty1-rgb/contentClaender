@@ -39,7 +39,8 @@ export async function getClients(): Promise<ClientWithCount[]> {
 }
 
 export async function getClientBySlug(slug: string): Promise<ClientItem | null> {
-  const client = await prisma.client.findUnique({ where: { slug } });
+  const decoded = (() => { try { return decodeURIComponent(slug); } catch { return slug; } })();
+  const client = await prisma.client.findUnique({ where: { slug: decoded } });
   return client as ClientItem | null;
 }
 
@@ -52,8 +53,8 @@ export async function createClient(data: {
 }): Promise<{ success: true; slug: string } | { success: false; error: string }> {
   if (!data.name.trim()) return { success: false, error: "الاسم مطلوب" };
   if (!data.slug.trim()) return { success: false, error: "المسار مطلوب" };
-  if (!/^[a-z0-9-]+$/.test(data.slug)) {
-    return { success: false, error: "المسار: أحرف إنجليزية صغيرة وأرقام وشرطة فقط" };
+  if (!/^[a-z0-9؀-ۿ-]+$/.test(data.slug)) {
+    return { success: false, error: "المسار: حروف عربية أو إنجليزية وأرقام وشرطة فقط" };
   }
   try {
     const client = await prisma.client.create({ data });

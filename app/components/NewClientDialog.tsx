@@ -28,7 +28,7 @@ function slugify(name: string): string {
   return name
     .toLowerCase()
     .replace(/\s+/g, "-")
-    .replace(/[^a-z0-9-]/g, "")
+    .replace(/[^a-z0-9؀-ۿ-]/g, "")
     .replace(/-+/g, "-")
     .replace(/^-|-$/g, "");
 }
@@ -44,8 +44,13 @@ export function NewClientDialog() {
   const handleSubmit = (e: FormEvent) => {
     e.preventDefault();
     setError(null);
+    const finalSlug = slugify(name.trim());
+    if (!finalSlug) {
+      setError("اسم العميل يحتوي رموز غير صالحة، اكتب اسماً عادياً");
+      return;
+    }
     startTransition(async () => {
-      const result = await createClient({ name: name.trim(), slug: slugify(name.trim()), color });
+      const result = await createClient({ name: name.trim(), slug: finalSlug, color });
       if (result.success) {
         toast.success(`تم إضافة ${name.trim()}`);
         setOpen(false);
