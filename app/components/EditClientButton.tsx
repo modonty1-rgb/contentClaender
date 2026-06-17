@@ -40,7 +40,9 @@ export function EditClientButton({
   const [color, setColor] = useState(clientColor);
   const [error, setError] = useState<string | null>(null);
 
-  const handleOpen = () => {
+  const handleOpen = (e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
     setName(clientName);
     setColor(clientColor);
     setError(null);

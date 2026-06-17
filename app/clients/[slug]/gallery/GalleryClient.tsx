@@ -21,7 +21,6 @@ import { X, ImageIcon, Film, ChevronLeft, ChevronRight, Upload, Download, Loader
 import { MONTHS } from "@/lib/constants";
 import type { GalleryEntry, AssetItem } from "@/app/actions/entries";
 import { downloadWithProgress } from "@/lib/download-with-progress";
-import { optimizeBunnyUrl } from "@/lib/bunny-url";
 import { assetSrc } from "@/lib/asset-url";
 
 // ─── Status badge config ──────────────────────────────────────────────────────
@@ -62,11 +61,10 @@ function AssetThumb({ asset, onClick }: { asset: AssetItem; onClick: () => void 
     >
       {asset.type === "image" ? (
         <Image
-          src={optimizeBunnyUrl(src, { width: 500 })}
+          src={src}
           alt={asset.label ?? ""}
           fill
           sizes="(max-width: 640px) 50vw, (max-width: 1024px) 33vw, 250px"
-          unoptimized
           className="object-cover group-hover:scale-105 transition-transform duration-300"
         />
       ) : (
@@ -373,11 +371,10 @@ export function GalleryClient({ entries, slug }: { entries: GalleryEntry[]; slug
           <div className="flex items-center justify-center bg-black/5 dark:bg-black/30 min-h-[50vh] max-h-[75vh] overflow-hidden p-3">
             {previewActive?.type === "image" ? (
               <Image
-                src={optimizeBunnyUrl(assetSrc(previewActive), { width: 1400 })}
+                src={assetSrc(previewActive)}
                 alt={previewActive.label ?? ""}
                 width={previewActive.width || 1400}
                 height={previewActive.height || 1400}
-                unoptimized
                 className="max-w-full max-h-[70vh] object-contain rounded-lg shadow-lg w-auto h-auto"
               />
             ) : previewActive ? (
@@ -416,7 +413,7 @@ export function GalleryClient({ entries, slug }: { entries: GalleryEntry[]; slug
                   }`}
                 >
                   {a.type === "image" ? (
-                    <Image src={optimizeBunnyUrl(assetSrc(a), { width: 100 })} alt="" fill sizes="48px" unoptimized className="object-cover" />
+                    <Image src={assetSrc(a)} alt="" fill sizes="48px" className="object-cover" />
                   ) : (
                     <video src={assetSrc(a)} className="w-full h-full object-cover" muted preload="metadata" />
                   )}

@@ -39,7 +39,7 @@ export default async function DashboardPage() {
       </header>
 
       {/* Grid */}
-      <main className="mx-auto max-w-5xl p-6">
+      <main className="mx-auto max-w-7xl p-4">
         {clients.length === 0 ? (
           <div className="flex flex-col items-center justify-center py-24 gap-4">
             <div className="text-5xl">📋</div>
@@ -48,76 +48,48 @@ export default async function DashboardPage() {
           </div>
         ) : null}
 
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-3">
           {clients.map((client) => {
             const currentMonthValue = MONTHS[new Date().getMonth()].value;
           const firstMonth = client.activeMonths.includes(currentMonthValue)
             ? currentMonthValue
             : (client.activeMonths[client.activeMonths.length - 1] ?? "jan");
-            const monthLabels = client.activeMonths
-              .map((mv) => MONTHS.find((m) => m.value === mv)?.label)
-              .filter(Boolean)
-              .join(" · ");
 
             return (
-              <div
+              <Link
                 key={client.id}
-                className="group relative rounded-2xl border border-border bg-card shadow-sm hover:shadow-lg hover:-translate-y-1 transition-all duration-200 overflow-hidden"
+                href={`/clients/${client.slug}/calendar/${firstMonth}`}
+                className="group relative rounded-xl border border-border bg-card shadow-sm hover:shadow-md hover:border-primary/40 hover:-translate-y-0.5 transition-all duration-200 overflow-hidden flex flex-col cursor-pointer"
               >
                 {/* Color bar */}
-                <div className="h-1.5 w-full" style={{ backgroundColor: client.color }} />
+                <div className="h-1 w-full" style={{ backgroundColor: client.color }} />
 
-                <div className="p-5">
+                <div className="p-3 flex flex-col flex-1">
                   {/* Header row */}
-                  <div className="flex items-start justify-between gap-2 mb-4">
-                    <div className="flex items-center gap-2.5">
-                      <div
-                        className="h-9 w-9 rounded-xl flex items-center justify-center text-white font-bold text-sm shrink-0"
-                        style={{ backgroundColor: client.color }}
-                      >
-                        {client.name.charAt(0).toUpperCase()}
-                      </div>
-                      <div>
-                        <h2 className="font-bold text-foreground text-base leading-tight">{client.name}</h2>
-                        <p className="text-[11px] text-muted-foreground font-mono">{client.slug}</p>
-                      </div>
-                    </div>
-                    <div className="flex items-center gap-1">
+                  <div className="flex items-start justify-between gap-1.5 mb-2.5">
+                    <h2 className="font-semibold text-foreground text-xs leading-snug wrap-break-word flex-1 min-w-0">
+                      {client.name}
+                    </h2>
+                    <div className="flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity shrink-0">
                       <EditClientButton clientId={client.id} clientName={client.name} clientColor={client.color} />
                       <DeleteClientButton clientId={client.id} clientName={client.name} />
                     </div>
                   </div>
 
                   {/* Stats */}
-                  <div className="flex gap-4 mb-4">
+                  <div className="flex items-center gap-3 mt-auto">
                     <div>
-                      <p className="text-2xl font-bold text-foreground tabular-nums">{client.totalEntries}</p>
-                      <p className="text-[11px] text-muted-foreground">منشور</p>
+                      <p className="text-lg font-bold text-foreground tabular-nums leading-none">{client.totalEntries}</p>
+                      <p className="text-[10px] text-muted-foreground mt-0.5">منشور</p>
                     </div>
-                    <div className="w-px bg-border" />
+                    <div className="h-6 w-px bg-border" />
                     <div>
-                      <p className="text-2xl font-bold text-foreground tabular-nums">{client.activeMonths.length}</p>
-                      <p className="text-[11px] text-muted-foreground">شهر نشط</p>
+                      <p className="text-lg font-bold text-foreground tabular-nums leading-none">{client.activeMonths.length}</p>
+                      <p className="text-[10px] text-muted-foreground mt-0.5">شهر</p>
                     </div>
                   </div>
-
-                  {/* Active months */}
-                  {monthLabels && (
-                    <p className="text-xs text-muted-foreground mb-4 leading-relaxed truncate" title={monthLabels}>
-                      {monthLabels}
-                    </p>
-                  )}
-
-                  {/* CTA */}
-                  <Link
-                    href={`/clients/${client.slug}/calendar/${firstMonth}`}
-                    className="flex items-center justify-center gap-2 w-full rounded-lg border border-border bg-muted/40 hover:bg-primary hover:text-primary-foreground hover:border-primary py-2 text-sm font-semibold transition-colors group"
-                  >
-                    <Calendar className="h-3.5 w-3.5" />
-                    فتح الكالندر
-                  </Link>
                 </div>
-              </div>
+              </Link>
             );
           })}
 

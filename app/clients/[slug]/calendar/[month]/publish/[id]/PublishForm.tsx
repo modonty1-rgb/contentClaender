@@ -4,7 +4,6 @@ import type { ReactElement } from "react";
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import Image from "next/image";
-import { optimizeBunnyUrl } from "@/lib/bunny-url";
 import { assetSrc, hasAssetUrl } from "@/lib/asset-url";
 import { ExternalLink, CheckCircle2, Send, Download, Loader2 } from "lucide-react";
 import { Button } from "@/app/components/ui/button";
@@ -176,11 +175,10 @@ export function PublishForm({ entry, slug, month }: Props): ReactElement {
                   {/* Preview */}
                   {a.type === "image" ? (
                     <Image
-                      src={optimizeBunnyUrl(assetSrc(a), { width: 1000 })}
+                      src={assetSrc(a)}
                       alt={a.label || `ملف ${i + 1}`}
                       width={1000}
                       height={1000}
-                      unoptimized
                       className="w-full max-h-[420px] object-contain bg-black/5 h-auto"
                     />
                   ) : (

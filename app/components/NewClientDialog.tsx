@@ -66,14 +66,14 @@ export function NewClientDialog() {
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>
         <button
-          className="group flex flex-col items-center justify-center gap-3 rounded-2xl border-2 border-dashed border-border bg-background hover:border-primary/50 hover:bg-primary/5 transition-all p-8 text-center min-h-50 cursor-pointer"
+          className="group flex flex-col items-center justify-center gap-2 rounded-xl border-2 border-dashed border-border bg-background hover:border-primary/50 hover:bg-primary/5 transition-all p-3 text-center min-h-full cursor-pointer"
         >
-          <div className="flex h-12 w-12 items-center justify-center rounded-full bg-muted group-hover:bg-primary/10 transition-colors">
-            <Plus className="h-6 w-6 text-muted-foreground group-hover:text-primary transition-colors" />
+          <div className="flex h-8 w-8 items-center justify-center rounded-full bg-muted group-hover:bg-primary/10 transition-colors">
+            <Plus className="h-4 w-4 text-muted-foreground group-hover:text-primary transition-colors" />
           </div>
           <div>
-            <p className="font-semibold text-foreground text-sm">إضافة عميل جديد</p>
-            <p className="text-xs text-muted-foreground mt-0.5">أنشئ كالندر محتوى خاص</p>
+            <p className="font-semibold text-foreground text-xs">إضافة عميل</p>
+            <p className="text-[10px] text-muted-foreground mt-0.5">كالندر جديد</p>
           </div>
         </button>
       </DialogTrigger>

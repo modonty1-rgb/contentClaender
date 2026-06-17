@@ -23,7 +23,6 @@ import {
   DropdownMenu, DropdownMenuCheckboxItem, DropdownMenuContent, DropdownMenuTrigger,
 } from "@/app/components/ui/dropdown-menu";
 import { cn } from "@/lib/utils";
-import { optimizeBunnyUrl } from "@/lib/bunny-url";
 import { assetSrc, hasAssetUrl } from "@/lib/asset-url";
 import { toast } from "@/app/components/ui/sonner";
 import { STATUS_OPTIONS, TYPE_OPTIONS, TYPE_LABELS, CUSTOMER_STAGE_LABELS, DAYS_IN_MONTH } from "@/lib/constants";
@@ -122,7 +121,7 @@ function CreativeCell({ entry }: { entry: EntryListItem }): ReactElement {
 
           {active.type === "image" ? (
             <div className="flex items-center justify-center bg-black/5 p-2" style={{ minHeight: "40vh", maxHeight: "65vh", overflow: "auto" }}>
-              <Image src={optimizeBunnyUrl(assetSrc(active), { width: 1400 })} alt={active.label || "ملف"} width={active.width || 1400} height={active.height || 1400} unoptimized className="max-w-full max-h-[60vh] object-contain rounded-lg w-auto h-auto" />
+              <Image src={assetSrc(active)} alt={active.label || "ملف"} width={active.width || 1400} height={active.height || 1400} className="max-w-full max-h-[60vh] object-contain rounded-lg w-auto h-auto" />
             </div>
           ) : (
             <video src={assetSrc(active)} controls autoPlay className="w-full" style={{ maxHeight: "65vh" }} />
@@ -470,7 +469,7 @@ function ActionsMenu({
                     {approveAssets.map((a, i) => (
                       <div key={a.id} className="rounded-xl border border-border overflow-hidden">
                         {a.type === "image" ? (
-                          <Image src={optimizeBunnyUrl(assetSrc(a), { width: 800 })} alt={a.label || `ملف ${i + 1}`} width={a.width || 800} height={a.height || 800} unoptimized className="w-full max-h-64 object-contain bg-black/5 h-auto" />
+                          <Image src={assetSrc(a)} alt={a.label || `ملف ${i + 1}`} width={a.width || 800} height={a.height || 800} className="w-full max-h-64 object-contain bg-black/5 h-auto" />
                         ) : (
                           <video src={assetSrc(a)} controls className="w-full max-h-64" preload="metadata" />
                         )}

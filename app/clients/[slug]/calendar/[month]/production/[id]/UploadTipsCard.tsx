@@ -32,7 +32,7 @@ export function UploadTipsCard() {
             <p className="text-xs font-bold text-foreground">الفيديو</p>
             <p className="text-[10px] text-muted-foreground">MP4 · MOV · WebM</p>
           </div>
-          <span className="text-sm font-bold text-purple-600 dark:text-purple-400 tabular-nums">100MB</span>
+          <span className="text-sm font-bold text-purple-600 dark:text-purple-400 tabular-nums">500MB</span>
         </div>
       </div>
 
@@ -47,7 +47,7 @@ export function UploadTipsCard() {
             <span className="font-semibold">صور &gt; 10MB:</span> صدّر JPG بجودة 85% — يقل الحجم 60% بدون فرق مرئي
           </li>
           <li>
-            <span className="font-semibold">فيديو &gt; 100MB:</span> اضغط بـ HandBrake (H.264, 4-6 Mbps) → ينزل لـ 30-50MB
+            <span className="font-semibold">فيديو &gt; 500MB:</span> اضغط بـ HandBrake (H.264, 4-6 Mbps) → ينزل لـ 30-50MB
           </li>
           <li>
             <span className="font-semibold">المحتوى الأمثل للسوشيال:</span> 60-90 ثانية فيديو، صورة 1080×1920

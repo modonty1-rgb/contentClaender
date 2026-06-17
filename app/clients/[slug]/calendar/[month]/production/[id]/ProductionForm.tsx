@@ -13,7 +13,6 @@ import { Button } from "@/app/components/ui/button";
 import { Input } from "@/app/components/ui/input";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/app/components/ui/dialog";
 import { cn } from "@/lib/utils";
-import { optimizeBunnyUrl } from "@/lib/bunny-url";
 import { assetSrc, hasAssetUrl } from "@/lib/asset-url";
 import { toast } from "@/app/components/ui/sonner";
 import { updateEntry, updateStatus } from "@/app/actions/entries";
@@ -370,11 +369,10 @@ export function ProductionForm({ entry, slug, month }: Props): ReactElement {
                 <div className="relative bg-black/5 border-b border-border">
                   {asset.type === "image" ? (
                     <Image
-                      src={optimizeBunnyUrl(assetSrc(asset), { width: 800 })}
+                      src={assetSrc(asset)}
                       alt={asset.label || `ملف ${idx + 1}`}
                       width={asset.width || 800}
                       height={asset.height || 800}
-                      unoptimized
                       className="w-full max-h-64 object-contain h-auto"
                     />
                   ) : (
