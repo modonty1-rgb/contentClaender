@@ -21,7 +21,8 @@ import { X, ImageIcon, Film, ChevronLeft, ChevronRight, Upload, Download, Loader
 import { MONTHS } from "@/lib/constants";
 import type { GalleryEntry, AssetItem } from "@/app/actions/entries";
 import { downloadWithProgress } from "@/lib/download-with-progress";
-import { optimizeCloudinaryUrl } from "@/lib/cloudinary-url";
+import { optimizeBunnyUrl } from "@/lib/bunny-url";
+import { assetSrc } from "@/lib/asset-url";
 
 // ─── Status badge config ──────────────────────────────────────────────────────
 
@@ -51,15 +52,8 @@ function formatBytes(bytes: number): string {
   return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
 }
 
-function downloadUrl(url: string): string {
-  // Cloudinary: add fl_attachment to force download
-  if (url.includes("res.cloudinary.com")) {
-    return url.replace("/upload/", "/upload/fl_attachment/");
-  }
-  return url;
-}
-
 function AssetThumb({ asset, onClick }: { asset: AssetItem; onClick: () => void }) {
+  const src = assetSrc(asset);
   return (
     <button
       type="button"
@@ -68,7 +62,7 @@ function AssetThumb({ asset, onClick }: { asset: AssetItem; onClick: () => void 
     >
       {asset.type === "image" ? (
         <Image
-          src={optimizeCloudinaryUrl(asset.url, { width: 500 })}
+          src={optimizeBunnyUrl(src, { width: 500 })}
           alt={asset.label ?? ""}
           fill
           sizes="(max-width: 640px) 50vw, (max-width: 1024px) 33vw, 250px"
@@ -77,7 +71,7 @@ function AssetThumb({ asset, onClick }: { asset: AssetItem; onClick: () => void 
         />
       ) : (
         <video
-          src={asset.url}
+          src={src}
           className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
           preload="metadata"
           muted
@@ -113,9 +107,11 @@ export function GalleryClient({ entries, slug }: { entries: GalleryEntry[]; slug
 
   const handleDownload = useCallback(async (asset: AssetItem, entryIdea: string) => {
     if (dlProgress !== null) return;
+    const src = assetSrc(asset);
+    if (!src) return;
     try {
       await downloadWithProgress(
-        asset.url,
+        src,
         asset.label || entryIdea || "ملف",
         (pct) => setDlProgress(pct),
       );
@@ -377,7 +373,7 @@ export function GalleryClient({ entries, slug }: { entries: GalleryEntry[]; slug
           <div className="flex items-center justify-center bg-black/5 dark:bg-black/30 min-h-[50vh] max-h-[75vh] overflow-hidden p-3">
             {previewActive?.type === "image" ? (
               <Image
-                src={optimizeCloudinaryUrl(previewActive.url, { width: 1400 })}
+                src={optimizeBunnyUrl(assetSrc(previewActive), { width: 1400 })}
                 alt={previewActive.label ?? ""}
                 width={previewActive.width || 1400}
                 height={previewActive.height || 1400}
@@ -386,8 +382,8 @@ export function GalleryClient({ entries, slug }: { entries: GalleryEntry[]; slug
               />
             ) : previewActive ? (
               <video
-                key={previewActive.url}
-                src={previewActive.url}
+                key={assetSrc(previewActive)}
+                src={assetSrc(previewActive)}
                 controls
                 className="max-w-full max-h-[70vh] rounded-lg shadow-lg"
                 preload="metadata"
@@ -420,9 +416,9 @@ export function GalleryClient({ entries, slug }: { entries: GalleryEntry[]; slug
                   }`}
                 >
                   {a.type === "image" ? (
-                    <Image src={optimizeCloudinaryUrl(a.url, { width: 100 })} alt="" fill sizes="48px" unoptimized className="object-cover" />
+                    <Image src={optimizeBunnyUrl(assetSrc(a), { width: 100 })} alt="" fill sizes="48px" unoptimized className="object-cover" />
                   ) : (
-                    <video src={a.url} className="w-full h-full object-cover" muted preload="metadata" />
+                    <video src={assetSrc(a)} className="w-full h-full object-cover" muted preload="metadata" />
                   )}
                 </button>
               ))}
@@ -436,7 +432,7 @@ export function GalleryClient({ entries, slug }: { entries: GalleryEntry[]; slug
           <AlertDialogHeader>
             <AlertDialogTitle>حذف الإبداع؟</AlertDialogTitle>
             <AlertDialogDescription>
-              سيتم حذف هذا الملف نهائياً من المعرض ومن Cloudinary. لا يمكن التراجع.
+              سيتم حذف هذا الملف نهائياً من المعرض ومن بَني. لا يمكن التراجع.
               {previewActive?.label && (
                 <span className="block mt-2 text-foreground font-semibold">
                   {previewActive.label}

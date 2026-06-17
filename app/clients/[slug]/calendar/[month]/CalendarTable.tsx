@@ -23,7 +23,8 @@ import {
   DropdownMenu, DropdownMenuCheckboxItem, DropdownMenuContent, DropdownMenuTrigger,
 } from "@/app/components/ui/dropdown-menu";
 import { cn } from "@/lib/utils";
-import { optimizeCloudinaryUrl } from "@/lib/cloudinary-url";
+import { optimizeBunnyUrl } from "@/lib/bunny-url";
+import { assetSrc, hasAssetUrl } from "@/lib/asset-url";
 import { toast } from "@/app/components/ui/sonner";
 import { STATUS_OPTIONS, TYPE_OPTIONS, TYPE_LABELS, CUSTOMER_STAGE_LABELS, DAYS_IN_MONTH } from "@/lib/constants";
 import type { EntryListItem, AssetItem } from "@/app/actions/entries";
@@ -32,15 +33,13 @@ import { sendTelegramNotification } from "@/app/actions/telegram";
 import { ChannelIcon } from "@/app/components/ui/channel-icon";
 import type { MonthValue } from "@/lib/constants";
 
-function isCloudinaryUrl(url: string): boolean {
-  return url.includes("res.cloudinary.com");
-}
-
 // ─── Creative Cell ────────────────────────────────────────────────────────────
 
 function getEntryAssets(entry: EntryListItem): AssetItem[] {
-  if (entry.assets && (entry.assets as AssetItem[]).length > 0) return entry.assets as AssetItem[];
-  if (entry.assetLink) return [{ id: "legacy", url: entry.assetLink, type: "video" }];
+  if (entry.assets && (entry.assets as AssetItem[]).length > 0) {
+    // Phase 2: show only assets that have a bunnyUrl
+    return (entry.assets as AssetItem[]).filter(hasAssetUrl);
+  }
   return [];
 }
 
@@ -123,14 +122,14 @@ function CreativeCell({ entry }: { entry: EntryListItem }): ReactElement {
 
           {active.type === "image" ? (
             <div className="flex items-center justify-center bg-black/5 p-2" style={{ minHeight: "40vh", maxHeight: "65vh", overflow: "auto" }}>
-              <Image src={optimizeCloudinaryUrl(active.url, { width: 1400 })} alt={active.label || "ملف"} width={active.width || 1400} height={active.height || 1400} unoptimized className="max-w-full max-h-[60vh] object-contain rounded-lg w-auto h-auto" />
+              <Image src={optimizeBunnyUrl(assetSrc(active), { width: 1400 })} alt={active.label || "ملف"} width={active.width || 1400} height={active.height || 1400} unoptimized className="max-w-full max-h-[60vh] object-contain rounded-lg w-auto h-auto" />
             </div>
           ) : (
-            <video src={active.url} controls autoPlay className="w-full" style={{ maxHeight: "65vh" }} />
+            <video src={assetSrc(active)} controls autoPlay className="w-full" style={{ maxHeight: "65vh" }} />
           )}
 
           <div className="px-4 py-2 border-t border-border flex justify-end">
-            <a href={active.url} target="_blank" rel="noopener noreferrer"
+            <a href={assetSrc(active)} target="_blank" rel="noopener noreferrer"
               className="inline-flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground transition-colors">
               <ExternalLink className="h-3.5 w-3.5" />
               فتح
@@ -396,14 +395,14 @@ function ActionsMenu({
             {entry.inspiration ? <Row label="الإلهام"    value={entry.inspiration} /> : null}
             {(() => {
               const viewAssets: AssetItem[] = entry.assets && (entry.assets as AssetItem[]).length > 0
-                ? (entry.assets as AssetItem[])
-                : entry.assetLink ? [{ id: "legacy", url: entry.assetLink, type: "video" }] : [];
+                ? (entry.assets as AssetItem[]).filter(hasAssetUrl)
+                : [];
               return viewAssets.length > 0 ? (
                 <div className="grid grid-cols-[120px_1fr] gap-2">
                   <span className="text-xs font-medium text-muted-foreground pt-0.5">الملفات ({viewAssets.length})</span>
                   <div className="space-y-1">
                     {viewAssets.map((a, i) => (
-                      <a key={a.id} href={a.url} target="_blank" rel="noopener noreferrer"
+                      <a key={a.id} href={assetSrc(a)} target="_blank" rel="noopener noreferrer"
                         className="flex items-center gap-1 text-primary underline text-xs">
                         {a.label || `ملف ${i + 1}`}
                         <ExternalLink className="h-3 w-3 shrink-0" />
@@ -471,13 +470,13 @@ function ActionsMenu({
                     {approveAssets.map((a, i) => (
                       <div key={a.id} className="rounded-xl border border-border overflow-hidden">
                         {a.type === "image" ? (
-                          <Image src={optimizeCloudinaryUrl(a.url, { width: 800 })} alt={a.label || `ملف ${i + 1}`} width={a.width || 800} height={a.height || 800} unoptimized className="w-full max-h-64 object-contain bg-black/5 h-auto" />
+                          <Image src={optimizeBunnyUrl(assetSrc(a), { width: 800 })} alt={a.label || `ملف ${i + 1}`} width={a.width || 800} height={a.height || 800} unoptimized className="w-full max-h-64 object-contain bg-black/5 h-auto" />
                         ) : (
-                          <video src={a.url} controls className="w-full max-h-64" preload="metadata" />
+                          <video src={assetSrc(a)} controls className="w-full max-h-64" preload="metadata" />
                         )}
                         <div className="px-3 py-2 flex items-center justify-between border-t border-border">
                           <span className="text-xs text-muted-foreground">{a.label || `ملف ${i + 1}`}</span>
-                          <a href={a.url} target="_blank" rel="noopener noreferrer"
+                          <a href={assetSrc(a)} target="_blank" rel="noopener noreferrer"
                             className="inline-flex items-center gap-1 text-xs text-primary hover:underline">
                             <ExternalLink className="h-3 w-3" />
                             فتح

@@ -3,25 +3,19 @@
 import { prisma } from "@/lib/prisma";
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
-import { v2 as cloudinary } from "cloudinary";
+import { deleteBunnyUrl } from "@/lib/bunny";
 
-cloudinary.config({
-  cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
-  api_key:    process.env.CLOUDINARY_API_KEY,
-  api_secret: process.env.CLOUDINARY_API_SECRET,
-});
-
-function extractCloudinaryPublicId(url: string): { publicId: string; resourceType: "image" | "video" } | null {
-  const m = url.match(/\/(image|video)\/upload\/(?:v\d+\/)?(.+?)(?:\.[^.]+)?$/);
-  if (!m) return null;
-  return { resourceType: m[1] as "image" | "video", publicId: m[2] };
-}
+// Cloudinary writes/deletes are disabled in Phase 2.
+// Existing cloudinary URLs are read-only during the live-test phase.
+// User will clean up the cloudinary account manually after team confirms migration.
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
 export type AssetItem = {
   id: string;
   url: string;
+  bunnyUrl?: string;
+  bunnyError?: string;
   type: "image" | "video";
   label?: string;
   width?: number;
@@ -308,11 +302,9 @@ export async function getEntriesWithAssets(
   for (const row of rows) {
     let assets: AssetItem[] = [];
     if (row.assets && (row.assets as AssetItem[]).length > 0) {
-      assets = (row.assets as AssetItem[]).filter((a) =>
-        a.url.includes("res.cloudinary.com"),
-      );
-    } else if (row.assetLink && row.assetLink.includes("res.cloudinary.com")) {
-      assets = [{ id: "legacy", url: row.assetLink, type: "video" }];
+      // Phase 2: show only assets that have a bunnyUrl. Migrated assets + new
+      // bunny uploads pass. Broken assets (bunnyError, no bunnyUrl) are excluded.
+      assets = (row.assets as AssetItem[]).filter((a) => Boolean(a.bunnyUrl));
     }
     if (assets.length > 0) {
       results.push({
@@ -370,13 +362,13 @@ export async function deleteAsset(entryId: string, assetId: string): Promise<Act
 
     const remaining = assets.filter((a) => a.id !== assetId);
 
-    // Delete from Cloudinary
-    const ext = extractCloudinaryPublicId(target.url);
-    if (ext) {
+    // Delete from bunny (only if a bunnyUrl exists). Cloudinary files are left
+    // untouched — user will clean them up manually after team confirms.
+    if (target.bunnyUrl) {
       try {
-        await cloudinary.uploader.destroy(ext.publicId, { resource_type: ext.resourceType });
+        await deleteBunnyUrl(target.bunnyUrl);
       } catch (e) {
-        console.error("Cloudinary destroy failed:", e);
+        console.error("Bunny delete failed:", e);
       }
     }
 

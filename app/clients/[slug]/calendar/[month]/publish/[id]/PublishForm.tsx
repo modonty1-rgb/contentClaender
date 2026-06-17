@@ -4,7 +4,8 @@ import type { ReactElement } from "react";
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import Image from "next/image";
-import { optimizeCloudinaryUrl } from "@/lib/cloudinary-url";
+import { optimizeBunnyUrl } from "@/lib/bunny-url";
+import { assetSrc, hasAssetUrl } from "@/lib/asset-url";
 import { ExternalLink, CheckCircle2, Send, Download, Loader2 } from "lucide-react";
 import { Button } from "@/app/components/ui/button";
 import { Input } from "@/app/components/ui/input";
@@ -161,8 +162,8 @@ export function PublishForm({ entry, slug, month }: Props): ReactElement {
         )}
         {(() => {
           const entryAssets: AssetItem[] = entry.assets && (entry.assets as AssetItem[]).length > 0
-            ? (entry.assets as AssetItem[])
-            : entry.assetLink ? [{ id: "legacy", url: entry.assetLink, type: "video" }] : [];
+            ? (entry.assets as AssetItem[]).filter(hasAssetUrl)
+            : [];
           if (entryAssets.length === 0) return (
             <div className="flex items-center justify-center rounded-xl border-2 border-dashed border-border py-8 text-sm text-muted-foreground">
               لا يوجد إبداع مرفق بعد
@@ -175,7 +176,7 @@ export function PublishForm({ entry, slug, month }: Props): ReactElement {
                   {/* Preview */}
                   {a.type === "image" ? (
                     <Image
-                      src={optimizeCloudinaryUrl(a.url, { width: 1000 })}
+                      src={optimizeBunnyUrl(assetSrc(a), { width: 1000 })}
                       alt={a.label || `ملف ${i + 1}`}
                       width={1000}
                       height={1000}
@@ -184,7 +185,7 @@ export function PublishForm({ entry, slug, month }: Props): ReactElement {
                     />
                   ) : (
                     <video
-                      src={a.url}
+                      src={assetSrc(a)}
                       controls
                       className="w-full max-h-[420px] bg-black"
                       preload="metadata"
@@ -202,7 +203,7 @@ export function PublishForm({ entry, slug, month }: Props): ReactElement {
                         {a.width}×{a.height}
                       </span>
                     )}
-                    <a href={a.url} target="_blank" rel="noopener noreferrer"
+                    <a href={assetSrc(a)} target="_blank" rel="noopener noreferrer"
                       className="flex items-center gap-1 px-2 py-1 rounded-md text-xs text-muted-foreground hover:text-foreground hover:bg-muted transition-colors shrink-0">
                       <ExternalLink className="h-3.5 w-3.5" />
                       فتح
@@ -213,7 +214,7 @@ export function PublishForm({ entry, slug, month }: Props): ReactElement {
                       onClick={async () => {
                         try {
                           await downloadWithProgress(
-                            a.url,
+                            assetSrc(a),
                             a.label || `ملف-${i + 1}`,
                             (pct) => setDlProgress((p) => ({ ...p, [a.id]: pct })),
                           );

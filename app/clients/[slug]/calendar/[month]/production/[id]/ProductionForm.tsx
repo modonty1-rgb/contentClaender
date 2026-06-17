@@ -13,7 +13,8 @@ import { Button } from "@/app/components/ui/button";
 import { Input } from "@/app/components/ui/input";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/app/components/ui/dialog";
 import { cn } from "@/lib/utils";
-import { optimizeCloudinaryUrl } from "@/lib/cloudinary-url";
+import { optimizeBunnyUrl } from "@/lib/bunny-url";
+import { assetSrc, hasAssetUrl } from "@/lib/asset-url";
 import { toast } from "@/app/components/ui/sonner";
 import { updateEntry, updateStatus } from "@/app/actions/entries";
 import { sendTelegramNotification } from "@/app/actions/telegram";
@@ -108,13 +109,8 @@ type Props = {
   month: MonthValue;
 };
 
-function isCloudinaryUrl(url: string): boolean {
-  return url.includes("res.cloudinary.com");
-}
-
 function parseAssets(entry: EntryListItem): AssetItem[] {
   if (entry.assets && (entry.assets as AssetItem[]).length > 0) return entry.assets as AssetItem[];
-  if (entry.assetLink) return [{ id: "legacy", url: entry.assetLink, type: "video", label: "" }];
   return [];
 }
 
@@ -136,11 +132,11 @@ export function ProductionForm({ entry, slug, month }: Props): ReactElement {
   async function handleFileUpload(assetId: string, file: File) {
     const isVideo = file.type.startsWith("video/");
     const MB = 1024 * 1024;
-    const limit = isVideo ? 100 * MB : 10 * MB;
+    const limit = isVideo ? 500 * MB : 10 * MB;
 
     if (file.size > limit) {
       const sizeMB = (file.size / MB).toFixed(1);
-      const limitMB = isVideo ? 100 : 10;
+      const limitMB = isVideo ? 500 : 10;
       toast.error(`حجم الملف ${sizeMB}MB أكبر من الحد المسموح (${limitMB}MB ${isVideo ? "للفيديو" : "للصور"}). اختر ملف أصغر.`);
       return;
     }
@@ -156,25 +152,12 @@ export function ProductionForm({ entry, slug, month }: Props): ReactElement {
     };
 
     try {
-      // 1) Get a signed signature from our API
-      const sigRes = await fetch("/api/upload-signature", { method: "POST" });
-      if (!sigRes.ok) {
-        toast.error("فشل التحقق من الصلاحيات. تأكد من إعدادات Cloudinary.");
-        cleanup();
-        return;
-      }
-      const { signature, timestamp, folder, apiKey, cloudName } = await sigRes.json();
-
-      // 2) Upload directly to Cloudinary (bypasses Vercel 4.5MB limit)
       const fd = new FormData();
       fd.append("file", file);
-      fd.append("api_key", apiKey);
-      fd.append("timestamp", String(timestamp));
-      fd.append("signature", signature);
-      fd.append("folder", folder);
-
-      const resourceType = isVideo ? "video" : "image";
-      const cloudUrl = `https://api.cloudinary.com/v1_1/${cloudName}/${resourceType}/upload`;
+      fd.append("slug", slug);
+      fd.append("month", month);
+      fd.append("entryId", entry.id);
+      fd.append("assetId", assetId);
 
       const xhr = new XMLHttpRequest();
       xhr.upload.onprogress = (e) => {
@@ -187,20 +170,19 @@ export function ProductionForm({ entry, slug, month }: Props): ReactElement {
       xhr.onload = () => {
         setUploadProgress((p) => ({ ...p, [assetId]: 100 }));
         if (xhr.status === 200) {
-          const data = JSON.parse(xhr.responseText) as { secure_url: string; width?: number; height?: number; bytes?: number };
+          const data = JSON.parse(xhr.responseText) as { url: string; bunnyUrl: string; type: "image" | "video"; bytes?: number };
           updateAsset(assetId, {
-            url:    data.secure_url,
-            type:   resourceType,
-            width:  data.width,
-            height: data.height,
-            bytes:  data.bytes,
+            url:      data.bunnyUrl,
+            bunnyUrl: data.bunnyUrl,
+            type:     data.type,
+            bytes:    data.bytes,
           });
           toast.success("تم رفع الملف");
         } else {
           let msg = `فشل الرفع (HTTP ${xhr.status})`;
           try {
-            const err = JSON.parse(xhr.responseText) as { error?: { message?: string } };
-            if (err.error?.message) msg = `Cloudinary: ${err.error.message}`;
+            const err = JSON.parse(xhr.responseText) as { error?: string };
+            if (err.error) msg = err.error;
           } catch {}
           toast.error(msg);
         }
@@ -212,7 +194,7 @@ export function ProductionForm({ entry, slug, month }: Props): ReactElement {
         cleanup();
       };
 
-      xhr.open("POST", cloudUrl);
+      xhr.open("POST", "/api/upload-bunny");
       xhr.send(fd);
     } catch (e) {
       toast.error(`خطأ غير متوقع: ${(e as Error).message}`);
@@ -223,7 +205,7 @@ export function ProductionForm({ entry, slug, month }: Props): ReactElement {
   const isFullyLocked = entry.status === "جاهز للنشر" || entry.status === "تم النشر";
   const isReview      = entry.status === "جاهز للمراجعة";
   const isDone        = isReview || isFullyLocked;
-  const canSubmit     = assets.some((a) => a.url.trim().length > 0);
+  const canSubmit     = assets.some(hasAssetUrl);
   const typeMeta      = entry.contentType ? CONTENT_TYPE_META[entry.contentType] : null;
   const TypeIcon      = typeMeta?.icon;
   const stageItems    = entry.customerStage.map((s) => STAGE_META[s]).filter(Boolean);
@@ -241,14 +223,14 @@ export function ProductionForm({ entry, slug, month }: Props): ReactElement {
   }
 
   function cleanAssets(): AssetItem[] {
-    return assets.filter((a) => a.url.trim().length > 0);
+    return assets.filter(hasAssetUrl);
   }
 
   async function handleMarkReady() {
     setSaving(true);
     try {
       const clean = cleanAssets();
-      await updateEntry(entry.id, { assets: clean, assetLink: clean[0]?.url ?? null });
+      await updateEntry(entry.id, { assets: clean, assetLink: clean[0] ? assetSrc(clean[0]) : null });
       const result = await updateStatus(entry.id, "جاهز للمراجعة");
       if (result.success) {
         toast.success("تم تحديث الحالة إلى جاهز للمراجعة");
@@ -383,12 +365,12 @@ export function ProductionForm({ entry, slug, month }: Props): ReactElement {
         <div className="space-y-3">
           {assets.map((asset, idx) => (
             <div key={asset.id} className="rounded-xl border border-border bg-muted/20 overflow-hidden">
-              {/* Asset preview (image/video) if uploaded to Cloudinary */}
-              {asset.url.trim() && isCloudinaryUrl(asset.url) && (
+              {/* Asset preview (image/video) — only when uploaded to bunny */}
+              {hasAssetUrl(asset) && (
                 <div className="relative bg-black/5 border-b border-border">
                   {asset.type === "image" ? (
                     <Image
-                      src={optimizeCloudinaryUrl(asset.url, { width: 800 })}
+                      src={optimizeBunnyUrl(assetSrc(asset), { width: 800 })}
                       alt={asset.label || `ملف ${idx + 1}`}
                       width={asset.width || 800}
                       height={asset.height || 800}
@@ -397,7 +379,7 @@ export function ProductionForm({ entry, slug, month }: Props): ReactElement {
                     />
                   ) : (
                     <video
-                      src={asset.url}
+                      src={assetSrc(asset)}
                       controls
                       className="w-full max-h-64"
                       preload="metadata"
@@ -446,10 +428,10 @@ export function ProductionForm({ entry, slug, month }: Props): ReactElement {
                 </button>
 
                 {/* Copy URL */}
-                {asset.url.trim() && (
+                {hasAssetUrl(asset) && (
                   <button
                     type="button"
-                    onClick={() => copyUrl(asset.id, asset.url)}
+                    onClick={() => copyUrl(asset.id, assetSrc(asset))}
                     className="shrink-0 h-8 w-8 flex items-center justify-center rounded-lg border border-border text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
                     title="نسخ الرابط">
                     {copiedId === asset.id
@@ -494,8 +476,8 @@ export function ProductionForm({ entry, slug, month }: Props): ReactElement {
 
 
                 {/* Open link */}
-                {asset.url.trim() && (
-                  <a href={asset.url} target="_blank" rel="noopener noreferrer"
+                {hasAssetUrl(asset) && (
+                  <a href={assetSrc(asset)} target="_blank" rel="noopener noreferrer"
                     className="shrink-0 h-8 w-8 flex items-center justify-center rounded-lg border border-border text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
                     title="فتح">
                     <ExternalLink className="h-3.5 w-3.5" />
@@ -565,7 +547,7 @@ export function ProductionForm({ entry, slug, month }: Props): ReactElement {
         </DialogHeader>
         <div className="px-4 py-2 border-t border-border flex justify-end">
           {previewAsset && (
-            <a href={previewAsset.url} target="_blank" rel="noopener noreferrer"
+            <a href={assetSrc(previewAsset)} target="_blank" rel="noopener noreferrer"
               className="inline-flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground transition-colors">
               <ExternalLink className="h-3.5 w-3.5" />
               فتح
