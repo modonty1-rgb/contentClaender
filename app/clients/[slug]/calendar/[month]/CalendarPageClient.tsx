@@ -12,6 +12,7 @@ import type { MonthValue } from "@/lib/constants";
 type Props = {
   slug: string;
   clientId: string;
+  clientName: string;
   month: MonthValue;
   monthLabel: string;
   initialEntries: EntryListItem[];
@@ -20,6 +21,7 @@ type Props = {
 export function CalendarPageClient({
   slug,
   clientId,
+  clientName,
   month,
   monthLabel,
   initialEntries,
@@ -50,6 +52,7 @@ export function CalendarPageClient({
     <CalendarTable
       entries={entries}
       slug={slug}
+      clientName={clientName}
       month={month}
       monthLabel={monthLabel}
       loading={loading}

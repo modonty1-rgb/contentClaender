@@ -242,10 +242,11 @@ function Row({
 // ─── Actions Dropdown ─────────────────────────────────────────────────────────
 
 function ActionsMenu({
-  entry, slug, month, onDelete, onReload,
+  entry, slug, clientName, month, onDelete, onReload,
 }: {
   entry: EntryListItem;
   slug: string;
+  clientName: string;
   month: MonthValue;
   onDelete: () => void;
   onReload: () => void;
@@ -264,7 +265,7 @@ function ActionsMenu({
       if (result.success) {
         toast.success("تمت الموافقة — جاهز للنشر");
         void sendTelegramNotification(
-          `✅ <b>جاهز للنشر</b>\n\n💡 <b>الفكرة:</b> ${entry.idea}\n📅 يوم ${entry.day}\n👤 العميل: ${slug}\n\nتمت الموافقة على الإبداع — جاهز للميديا باير.`
+          `✅ <b>جاهز للنشر</b>\n\n💡 <b>الفكرة:</b> ${entry.idea}\n📅 يوم ${entry.day}\n👤 العميل: ${clientName}\n\nتمت الموافقة على الإبداع — جاهز للميديا باير.`
         );
         setApproveOpen(false);
         onReload();
@@ -553,6 +554,7 @@ function ActionsMenu({
 export type CalendarTableProps = {
   entries: EntryListItem[];
   slug: string;
+  clientName: string;
   month: MonthValue;
   monthLabel: string;
   loading: boolean;
@@ -561,7 +563,7 @@ export type CalendarTableProps = {
 };
 
 export function CalendarTable({
-  entries, slug, month, monthLabel, loading, onDelete, onReload,
+  entries, slug, clientName, month, monthLabel, loading, onDelete, onReload,
 }: CalendarTableProps): ReactElement {
   const [deleteTargetId, setDeleteTargetId] = useState<string | null>(null);
   const [filterStatus, setFilterStatus] = useState<string>("الكل");
@@ -880,7 +882,7 @@ export function CalendarTable({
                       )}
                       <TableCell className="w-0 p-0">
                         <div className="absolute left-0 inset-y-0 z-10 flex items-center gap-0.5 px-3 opacity-0 group-hover/row:opacity-100 group-hover/row:pointer-events-auto pointer-events-none transition-opacity duration-150 bg-card border-r border-border shadow-[-4px_0_8px_rgba(0,0,0,0.04)]">
-                          <ActionsMenu entry={entry} slug={slug} month={month} onDelete={() => setDeleteTargetId(entry.id)} onReload={onReload} />
+                          <ActionsMenu entry={entry} slug={slug} clientName={clientName} month={month} onDelete={() => setDeleteTargetId(entry.id)} onReload={onReload} />
                         </div>
                       </TableCell>
                     </TableRow>
@@ -965,7 +967,7 @@ export function CalendarTable({
                         )}
                         <TableCell className="w-0 p-0">
                           <div className="absolute left-0 inset-y-0 z-10 flex items-center gap-0.5 px-3 opacity-0 group-hover/row:opacity-100 group-hover/row:pointer-events-auto pointer-events-none transition-opacity duration-150 bg-card border-r border-border shadow-[-4px_0_8px_rgba(0,0,0,0.04)]">
-                            <ActionsMenu entry={entry} slug={slug} month={month} onDelete={() => setDeleteTargetId(entry.id)} onReload={onReload} />
+                            <ActionsMenu entry={entry} slug={slug} clientName={clientName} month={month} onDelete={() => setDeleteTargetId(entry.id)} onReload={onReload} />
                           </div>
                         </TableCell>
                       </TableRow>

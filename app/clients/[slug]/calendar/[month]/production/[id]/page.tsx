@@ -58,6 +58,7 @@ export default async function ProductionPage({ params }: Props) {
           <ProductionForm
             entry={entry}
             slug={slug}
+            clientName={client.name}
             month={month as MonthValue}
           />
           <UploadTipsCard />

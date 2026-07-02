@@ -67,6 +67,7 @@ export default async function EditEntryPage({ params }: Props) {
           entryId={id}
           slug={slug}
           clientId={client.id}
+          clientName={client.name}
           month={month as MonthValue}
           monthLabel={monthMeta.label}
           defaultValues={defaultValues}

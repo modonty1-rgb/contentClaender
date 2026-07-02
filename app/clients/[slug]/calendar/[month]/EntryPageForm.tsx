@@ -371,13 +371,14 @@ type Props = {
   entryId?: string;
   slug: string;
   clientId?: string;
+  clientName: string;
   month: MonthValue;
   monthLabel: string;
   defaultValues: EntryPageFormData;
   entryDays?: number[];
 };
 
-export function EntryPageForm({ mode, entryId, slug, clientId, month, defaultValues, entryDays }: Props): ReactElement {
+export function EntryPageForm({ mode, entryId, slug, clientId, clientName, month, defaultValues, entryDays }: Props): ReactElement {
   const router = useRouter();
   const [data, setData] = useState<EntryPageFormData>(defaultValues);
   const [saving, setSaving] = useState(false);
@@ -440,7 +441,7 @@ export function EntryPageForm({ mode, entryId, slug, clientId, month, defaultVal
             typeLabel  ? `🎬 <b>نوع المحتوى:</b> ${typeLabel}` : null,
             stageLabels ? `🎯 <b>هدف الحملة:</b> ${stageLabels}` : null,
             data.channels.length ? `📢 <b>القنوات:</b> ${data.channels.join("، ")}` : null,
-            slug ? `\n👤 <b>العميل:</b> ${slug}` : null,
+            clientName ? `\n👤 <b>العميل:</b> ${clientName}` : null,
           ].filter(Boolean).join("\n");
           await sendTelegramNotification(msg);
         }

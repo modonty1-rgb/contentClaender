@@ -56,6 +56,7 @@ export default async function PublishPage({ params }: Props) {
         <PublishForm
           entry={entry}
           slug={slug}
+          clientName={client.name}
           month={month as MonthValue}
         />
       </main>

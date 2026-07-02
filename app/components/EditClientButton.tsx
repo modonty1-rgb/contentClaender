@@ -78,7 +78,12 @@ export function EditClientButton({
       </Button>
 
       <Dialog open={open} onOpenChange={setOpen}>
-        <DialogContent dir="rtl" className="sm:max-w-md">
+        <DialogContent
+          dir="rtl"
+          className="sm:max-w-md"
+          onClick={(e) => e.stopPropagation()}
+          onPointerDown={(e) => e.stopPropagation()}
+        >
           <DialogHeader>
             <DialogTitle>تعديل العميل</DialogTitle>
           </DialogHeader>

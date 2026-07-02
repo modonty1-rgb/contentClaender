@@ -107,6 +107,7 @@ export default async function ClientCalendarPage({ params }: Props) {
           <CalendarPageClient
             slug={slug}
             clientId={client.id}
+            clientName={client.name}
             month={month as MonthValue}
             monthLabel={monthMeta.label}
             initialEntries={entries}

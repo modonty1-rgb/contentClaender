@@ -60,6 +60,7 @@ export default async function NewEntryPage({ params }: Props) {
           mode="create"
           slug={slug}
           clientId={client.id}
+          clientName={client.name}
           month={month as MonthValue}
           monthLabel={monthMeta.label}
           defaultValues={defaultValues}

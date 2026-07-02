@@ -63,9 +63,9 @@ function ReadField({ label, value }: { label: string; value?: string | null }) {
 
 // ─── Main ─────────────────────────────────────────────────────────────────────
 
-type Props = { entry: EntryListItem; slug: string; month: string };
+type Props = { entry: EntryListItem; slug: string; clientName: string; month: string };
 
-export function PublishForm({ entry, slug, month }: Props): ReactElement {
+export function PublishForm({ entry, slug, clientName, month }: Props): ReactElement {
   const router = useRouter();
 
   const existingLinks = (entry.channelLinks as Record<string, string> | null) ?? {};
@@ -119,7 +119,7 @@ export function PublishForm({ entry, slug, month }: Props): ReactElement {
       if (result.success) {
         toast.success("تم النشر بنجاح");
         void sendTelegramNotification(
-          `🚀 <b>تم النشر</b>\n\n💡 <b>الفكرة:</b> ${entry.idea}\n📅 يوم ${entry.day}\n👤 العميل: ${slug}\n\nتم نشر المحتوى بنجاح.`
+          `🚀 <b>تم النشر</b>\n\n💡 <b>الفكرة:</b> ${entry.idea}\n📅 يوم ${entry.day}\n👤 العميل: ${clientName}\n\nتم نشر المحتوى بنجاح.`
         );
         window.location.href = `/clients/${slug}/calendar/${month}`;
       } else {

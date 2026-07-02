@@ -105,6 +105,7 @@ function dayDetail(day: number, month: MonthValue): string {
 type Props = {
   entry: EntryListItem;
   slug: string;
+  clientName: string;
   month: MonthValue;
 };
 
@@ -113,7 +114,7 @@ function parseAssets(entry: EntryListItem): AssetItem[] {
   return [];
 }
 
-export function ProductionForm({ entry, slug, month }: Props): ReactElement {
+export function ProductionForm({ entry, slug, clientName, month }: Props): ReactElement {
   const router = useRouter();
   const [assets, setAssets] = useState<AssetItem[]>(() => parseAssets(entry));
   const [previewAsset, setPreviewAsset] = useState<AssetItem | null>(null);
@@ -234,7 +235,7 @@ export function ProductionForm({ entry, slug, month }: Props): ReactElement {
       if (result.success) {
         toast.success("تم تحديث الحالة إلى جاهز للمراجعة");
         void sendTelegramNotification(
-          `🎨 <b>جاهز للمراجعة</b>\n\n💡 <b>الفكرة:</b> ${entry.idea}\n📅 يوم ${entry.day}\n👤 العميل: ${slug}\n\nالإبداع جاهز (${clean.length} ملف) — يرجى المراجعة والموافقة.`
+          `🎨 <b>جاهز للمراجعة</b>\n\n💡 <b>الفكرة:</b> ${entry.idea}\n📅 يوم ${entry.day}\n👤 العميل: ${clientName}\n\nالإبداع جاهز (${clean.length} ملف) — يرجى المراجعة والموافقة.`
         );
         window.location.href = `/clients/${slug}/calendar/${month}`;
       } else {

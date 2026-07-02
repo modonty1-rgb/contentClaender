@@ -49,7 +49,11 @@ export function DeleteClientButton({
       </Button>
 
       <AlertDialog open={open} onOpenChange={setOpen}>
-        <AlertDialogContent dir="rtl">
+        <AlertDialogContent
+          dir="rtl"
+          onClick={(e) => e.stopPropagation()}
+          onPointerDown={(e) => e.stopPropagation()}
+        >
           <AlertDialogHeader>
             <AlertDialogTitle>حذف {clientName}</AlertDialogTitle>
             <AlertDialogDescription>
