@@ -12,9 +12,13 @@ model Client {
   name      String
   slug      String         @unique
   color     String         @default("#6366f1")
+  type      String         @default("social")
+  archived  Boolean        @default(false)
   entries   ContentEntry[]
   createdAt DateTime       @default(now())
   updatedAt DateTime       @updatedAt
+
+  @@index([archived])
 }
 
 model ContentEntry {

@@ -10,7 +10,7 @@ import {
   Dialog, DialogContent, DialogHeader, DialogTitle,
 } from "@/app/components/ui/dialog";
 import { cn } from "@/lib/utils";
-import { updateClient } from "@/app/actions/clients";
+import { updateClient, type ClientType } from "@/app/actions/clients";
 import { toast } from "@/app/components/ui/sonner";
 
 const COLORS = [
@@ -28,16 +28,19 @@ export function EditClientButton({
   clientId,
   clientName,
   clientColor,
+  clientType,
 }: {
   clientId: string;
   clientName: string;
   clientColor: string;
+  clientType: ClientType;
 }) {
   const router = useRouter();
   const [open, setOpen] = useState(false);
   const [pending, startTransition] = useTransition();
   const [name, setName] = useState(clientName);
   const [color, setColor] = useState(clientColor);
+  const [type, setType] = useState<ClientType>(clientType);
   const [error, setError] = useState<string | null>(null);
 
   const handleOpen = (e: React.MouseEvent) => {
@@ -45,6 +48,7 @@ export function EditClientButton({
     e.stopPropagation();
     setName(clientName);
     setColor(clientColor);
+    setType(clientType);
     setError(null);
     setOpen(true);
   };
@@ -53,7 +57,7 @@ export function EditClientButton({
     e.preventDefault();
     setError(null);
     startTransition(async () => {
-      const result = await updateClient(clientId, { name: name.trim(), color });
+      const result = await updateClient(clientId, { name: name.trim(), color, type });
       if (result.success) {
         toast.success("تم تعديل بيانات العميل");
         setOpen(false);
@@ -100,6 +104,38 @@ export function EditClientButton({
                 autoFocus
                 required
               />
+            </div>
+
+            <div className="space-y-2">
+              <Label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">
+                النوع
+              </Label>
+              <div className="grid grid-cols-2 gap-2">
+                <button
+                  type="button"
+                  onClick={() => setType("social")}
+                  className={cn(
+                    "rounded-lg border-2 px-3 py-2 text-xs font-semibold transition-all",
+                    type === "social"
+                      ? "border-primary bg-primary/10 text-primary"
+                      : "border-border bg-background text-muted-foreground hover:border-primary/40",
+                  )}
+                >
+                  وسائل التواصل
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setType("article")}
+                  className={cn(
+                    "rounded-lg border-2 px-3 py-2 text-xs font-semibold transition-all",
+                    type === "article"
+                      ? "border-primary bg-primary/10 text-primary"
+                      : "border-border bg-background text-muted-foreground hover:border-primary/40",
+                  )}
+                >
+                  مقالات
+                </button>
+              </div>
             </div>
 
             <div className="space-y-2">
